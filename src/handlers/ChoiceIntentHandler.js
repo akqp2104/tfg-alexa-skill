@@ -6,6 +6,8 @@ const sessionService = require("../services/sessionService");
 
 const evaluationService = require("../services/evaluationService");
 
+const choiceService = require("../services/choiceService");
+
 const ChoiceIntentHandler = {
   canHandle(handlerInput) {
     return (
@@ -19,7 +21,9 @@ const ChoiceIntentHandler = {
 
     const currentSceneId = sessionAttributes.currentScene;
 
-    const choice = Alexa.getSlotValue(handlerInput.requestEnvelope, "choice");
+    const choice = choiceService.getResolvedChoice(handlerInput, "choice");
+
+    console.log("Choice normalizada:", choice);
 
     const result = storyService.getNextScene(currentSceneId, choice);
 
@@ -33,10 +37,6 @@ const ChoiceIntentHandler = {
       choice,
       result,
     );
-
-    console.log("Historial:", updatedSession.history);
-
-    console.log("Indicadores:", updatedSession.indicators);
 
     if (result.scene.isFinal) {
       return handleFinalScene(handlerInput, result.scene, updatedSession);
@@ -66,8 +66,6 @@ function handleFinalScene(handlerInput, scene, sessionAttributes) {
   const evaluation = evaluationService.evaluate(sessionAttributes.indicators);
 
   const evaluationSummary = evaluationService.buildSummary(evaluation);
-
-  console.log("Evaluación:", evaluation);
 
   const speakOutput =
     `${scene.text} ` +

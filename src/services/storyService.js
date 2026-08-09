@@ -1,3 +1,19 @@
+const scenes = require("../story/scenes");
+
+const INITIAL_SCENE_ID = "scene_1";
+
+function getScene(sceneId) {
+  return scenes[sceneId] || null;
+}
+
+function getInitialScene() {
+  return getScene(INITIAL_SCENE_ID);
+}
+
+function getInitialSceneId() {
+  return INITIAL_SCENE_ID;
+}
+
 function getNextScene(currentSceneId, choice) {
   const currentScene = getScene(currentSceneId);
 
@@ -8,7 +24,14 @@ function getNextScene(currentSceneId, choice) {
     };
   }
 
-  const selectedChoice = currentScene.choices?.[choice];
+  if (!currentScene.choices) {
+    return {
+      success: false,
+      error: "NO_CHOICES_AVAILABLE",
+    };
+  }
+
+  const selectedChoice = currentScene.choices[choice];
 
   if (!selectedChoice) {
     return {
@@ -31,6 +54,12 @@ function getNextScene(currentSceneId, choice) {
     success: true,
     sceneId: nextSceneId,
     scene: nextScene,
-    indicators: selectedChoice.indicators || {},
   };
 }
+
+module.exports = {
+  getScene,
+  getInitialScene,
+  getInitialSceneId,
+  getNextScene,
+};
