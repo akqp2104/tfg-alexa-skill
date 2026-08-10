@@ -1,11 +1,6 @@
 const Alexa = require("ask-sdk-core");
-
-const storyService = require("../services/storyService");
-
+const gameService = require("../services/gameService");
 const sessionService = require("../services/sessionService");
-
-const evaluationService = require("../services/evaluationService");
-
 const choiceService = require("../services/choiceService");
 
 const ChoiceIntentHandler = {
@@ -16,66 +11,51 @@ const ChoiceIntentHandler = {
     );
   },
 
-  handle(handlerInput) {
-    const sessionAttributes = sessionService.getSession(handlerInput);
+  async handle(handlerInput) {
+    const gameState = sessionService.getGameState(handlerInput);
 
-    const currentSceneId = sessionAttributes.currentScene;
-
-    const choice = choiceService.getResolvedChoice(handlerInput, "choice");
-
-    console.log("Choice normalizada:", choice);
-
-    const result = storyService.getNextScene(currentSceneId, choice);
-
-    if (!result.success) {
-      return handleStoryError(handlerInput, result.error);
+    if (!gameState) {
+      return handlerInput.responseBuilder
+        .speak(
+          "No hay ninguna partida activa. " +
+            "Puedes comenzar una nueva historia.",
+        )
+        .withShouldEndSession(true)
+        .getResponse();
     }
 
-    const updatedSession = sessionService.applyChoiceResult(
-      handlerInput,
-      currentSceneId,
-      choice,
-      result,
+    const userInput = choiceService.getUserInput(handlerInput);
+
+    if (!userInput?.rawText) {
+      return handlerInput.responseBuilder
+        .speak("No he entendido tu respuesta. " + "¿Puedes repetirla?")
+        .reprompt("¿Qué decides hacer?")
+        .getResponse();
+    }
+
+    console.log("Respuesta del usuario:", userInput);
+
+    const result = await gameService.processTurn(gameState, userInput);
+
+    sessionService.saveGameState(handlerInput, result.gameState);
+
+    const responseBuilder = handlerInput.responseBuilder.speak(result.response);
+
+    if (result.shouldEndSession) {
+      return responseBuilder.withShouldEndSession(true).getResponse();
+    }
+
+    // Cargar las opciones que acaba
+    // de generar el siguiente turno.
+    choiceService.addDynamicEntities(
+      responseBuilder,
+      result.gameState.currentChoices,
     );
 
-    if (result.scene.isFinal) {
-      return handleFinalScene(handlerInput, result.scene, updatedSession);
-    }
-
-    return handlerInput.responseBuilder
-      .speak(result.scene.text)
-      .reprompt(result.scene.reprompt)
+    return responseBuilder
+      .reprompt(result.reprompt || "¿Qué decides hacer?")
       .getResponse();
   },
 };
-
-function handleStoryError(handlerInput, error) {
-  if (error === "INVALID_CHOICE") {
-    return handlerInput.responseBuilder
-      .speak("No he entendido tu elección.")
-      .reprompt("Intenta elegir una de las opciones disponibles.")
-      .getResponse();
-  }
-
-  return handlerInput.responseBuilder
-    .speak("Ha ocurrido un problema al continuar la historia.")
-    .getResponse();
-}
-
-function handleFinalScene(handlerInput, scene, sessionAttributes) {
-  const evaluation = evaluationService.evaluate(sessionAttributes.indicators);
-
-  const evaluationSummary = evaluationService.buildSummary(evaluation);
-
-  const speakOutput =
-    `${scene.text} ` +
-    `${evaluationSummary} ` +
-    "Este resultado es únicamente orientativo y no constituye un diagnóstico médico.";
-
-  return handlerInput.responseBuilder
-    .speak(speakOutput)
-    .withShouldEndSession(true)
-    .getResponse();
-}
 
 module.exports = ChoiceIntentHandler;

@@ -1,70 +1,32 @@
-function initializeSession(handlerInput, initialSceneId) {
+function initializeSession(handlerInput, gameState) {
   const sessionAttributes =
     handlerInput.attributesManager.getSessionAttributes();
 
-  sessionAttributes.currentScene = initialSceneId;
-  sessionAttributes.history = [];
-  sessionAttributes.indicators = {};
+  sessionAttributes.gameState = gameState;
 
-  saveSession(handlerInput, sessionAttributes);
-
-  return sessionAttributes;
-}
-
-function getSession(handlerInput) {
-  return handlerInput.attributesManager.getSessionAttributes();
-}
-
-function saveSession(handlerInput, sessionAttributes) {
   handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
+
+  return gameState;
 }
 
-function registerChoice(sessionAttributes, sceneId, choice) {
-  if (!sessionAttributes.history) {
-    sessionAttributes.history = [];
-  }
+function getGameState(handlerInput) {
+  const sessionAttributes =
+    handlerInput.attributesManager.getSessionAttributes();
 
-  sessionAttributes.history.push({
-    scene: sceneId,
-    choice: choice,
-  });
+  return sessionAttributes.gameState || null;
 }
 
-function accumulateIndicators(sessionAttributes, indicators = {}) {
-  if (!sessionAttributes.indicators) {
-    sessionAttributes.indicators = {};
-  }
+function saveGameState(handlerInput, gameState) {
+  const sessionAttributes =
+    handlerInput.attributesManager.getSessionAttributes();
 
-  for (const [indicator, value] of Object.entries(indicators)) {
-    sessionAttributes.indicators[indicator] =
-      (sessionAttributes.indicators[indicator] || 0) + value;
-  }
-}
+  sessionAttributes.gameState = gameState;
 
-function updateCurrentScene(sessionAttributes, sceneId) {
-  sessionAttributes.currentScene = sceneId;
-}
-
-function applyChoiceResult(handlerInput, currentSceneId, choice, result) {
-  const sessionAttributes = getSession(handlerInput);
-
-  registerChoice(sessionAttributes, currentSceneId, choice);
-
-  accumulateIndicators(sessionAttributes, result.indicators);
-
-  updateCurrentScene(sessionAttributes, result.sceneId);
-
-  saveSession(handlerInput, sessionAttributes);
-
-  return sessionAttributes;
+  handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 }
 
 module.exports = {
   initializeSession,
-  getSession,
-  saveSession,
-  registerChoice,
-  accumulateIndicators,
-  updateCurrentScene,
-  applyChoiceResult,
+  getGameState,
+  saveGameState,
 };

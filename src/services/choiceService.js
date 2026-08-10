@@ -1,43 +1,74 @@
-function normalizeChoice(choice) {
-  if (!choice) {
-    return null;
-  }
+const DYNAMIC_ENTITY_TYPE = "CHOICE_TYPE";
 
-  return choice
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function getResolvedChoice(handlerInput, slotName) {
-  const slot = handlerInput.requestEnvelope.request.intent.slots?.[slotName];
+function getUserInput(handlerInput) {
+  const slot = handlerInput.requestEnvelope.request.intent.slots?.choice;
 
   if (!slot) {
     return null;
   }
 
-  const resolutions = slot.resolutions?.resolutionsPerAuthority;
+  return {
+    rawText: slot.value?.trim() || null,
+    resolvedChoice: getResolvedChoice(slot),
+  };
+}
 
-  if (resolutions) {
-    for (const resolution of resolutions) {
-      if (
-        resolution.status?.code === "ER_SUCCESS_MATCH" &&
-        resolution.values?.length > 0
-      ) {
-        const canonicalValue = resolution.values[0].value.name;
+function getResolvedChoice(slot) {
+  const authorities = slot.resolutions?.resolutionsPerAuthority;
 
-        return normalizeChoice(canonicalValue);
-      }
+  if (!authorities) {
+    return null;
+  }
+
+  for (const authority of authorities) {
+    if (
+      authority.status?.code === "ER_SUCCESS_MATCH" &&
+      authority.values?.length > 0
+    ) {
+      const value = authority.values[0].value;
+
+      return {
+        id: value.id || null,
+        name: value.name || null,
+      };
     }
   }
 
-  // Fallback: si Alexa no resuelve la entidad,
-  // usamos el valor reconocido directamente.
-  return normalizeChoice(slot.value);
+  return null;
+}
+
+function buildDynamicEntitiesDirective(choices) {
+  return {
+    type: "Dialog.UpdateDynamicEntities",
+    updateBehavior: "REPLACE",
+    types: [
+      {
+        name: DYNAMIC_ENTITY_TYPE,
+
+        values: choices.map((choice) => ({
+          id: choice.id,
+
+          name: {
+            value: choice.text,
+            synonyms: choice.synonyms || [],
+          },
+        })),
+      },
+    ],
+  };
+}
+
+function addDynamicEntities(responseBuilder, choices) {
+  if (!choices || choices.length === 0) {
+    return responseBuilder;
+  }
+
+  return responseBuilder.addDirective(buildDynamicEntitiesDirective(choices));
 }
 
 module.exports = {
-  normalizeChoice,
+  getUserInput,
   getResolvedChoice,
+  buildDynamicEntitiesDirective,
+  addDynamicEntities,
 };

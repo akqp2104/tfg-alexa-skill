@@ -1,7 +1,8 @@
 const Alexa = require("ask-sdk-core");
-
-const storyService = require("../services/storyService");
+const createInitialGameState = require("../state/createInitialGameState");
 const sessionService = require("../services/sessionService");
+const gameService = require("../services/gameService");
+const choiceService = require("../services/choiceService");
 
 const StartStoryIntentHandler = {
   canHandle(handlerInput) {
@@ -11,23 +12,25 @@ const StartStoryIntentHandler = {
     );
   },
 
-  handle(handlerInput) {
-    const initialSceneId = storyService.getInitialSceneId();
+  async handle(handlerInput) {
+    const sessionId = handlerInput.requestEnvelope.session.sessionId;
 
-    const initialScene = storyService.getInitialScene();
+    const gameState = createInitialGameState(sessionId);
 
-    if (!initialScene) {
-      return handlerInput.responseBuilder
-        .speak("No he podido iniciar la historia.")
-        .getResponse();
-    }
+    const result = await gameService.startGame(gameState);
 
-    sessionService.initializeSession(handlerInput, initialSceneId);
+    sessionService.saveGameState(handlerInput, result.gameState);
 
-    return handlerInput.responseBuilder
-      .speak(initialScene.text)
-      .reprompt(initialScene.reprompt)
-      .getResponse();
+    const responseBuilder = handlerInput.responseBuilder
+      .speak(result.response)
+      .reprompt(result.reprompt);
+
+    choiceService.addDynamicEntities(
+      responseBuilder,
+      result.gameState.currentChoices,
+    );
+
+    return responseBuilder.getResponse();
   },
 };
 
