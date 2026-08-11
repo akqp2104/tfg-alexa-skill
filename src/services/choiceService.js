@@ -66,9 +66,31 @@ function addDynamicEntities(responseBuilder, choices) {
   return responseBuilder.addDirective(buildDynamicEntitiesDirective(choices));
 }
 
+function buildChoicesSpeech(choices) {
+  if (!choices || choices.length === 0) {
+    return "";
+  }
+
+  const texts = choices.map((choice) => choice.text);
+
+  if (texts.length === 2) {
+    return `Puedes ${texts[0]} o ${texts[1]}. ¿Qué prefieres hacer?`;
+  }
+
+  if (texts.length === 3) {
+    return (
+      `Puedes ${texts[0]}, ${texts[1]} o ${texts[2]}. ` +
+      "¿Qué prefieres hacer?"
+    );
+  }
+
+  return "¿Qué prefieres hacer?";
+}
+
 module.exports = {
   getUserInput,
   getResolvedChoice,
   buildDynamicEntitiesDirective,
   addDynamicEntities,
+  buildChoicesSpeech,
 };

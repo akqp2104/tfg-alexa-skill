@@ -1,12 +1,93 @@
-async function generate(prompt) {
-  console.log("Prompt:", prompt);
+const { GoogleGenAI } = require("@google/genai");
+const narrativeResponseSchema = require("../schemas/narrativeResponseSchema");
+const geminiNarrativeSchema = require("../schemas/geminiNarrativeSchema");
 
-  // Por ahora usaremos un resultado simulado para la escena inicial.
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+const MODEL = process.env.LLM_MODEL || "gemini-3.5-flash-lite";
+
+const USE_LLM_MOCK = process.env.USE_LLM_MOCK === "true";
+
+async function generate(prompt) {
+  if (USE_LLM_MOCK) {
+    console.log("LLM mode: MOCK");
+    return generateMockResponse();
+  }
+
+  return generateWithGemini(prompt);
+}
+
+async function generateWithGemini(prompt) {
+  console.log(`LLM mode: GEMINI (${MODEL})`);
+  const start = Date.now();
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: prompt,
+
+      config: {
+        maxOutputTokens: 800,
+        responseMimeType: "application/json",
+        responseJsonSchema: geminiNarrativeSchema,
+
+        thinkingConfig: {
+          thinkingLevel: "minimal",
+        },
+      },
+    });
+
+    const latencyMs = Date.now() - start;
+    const usage = response.usageMetadata;
+
+    console.log("LLM metrics:", {
+      model: MODEL,
+      latencyMs,
+      inputTokens: usage?.promptTokenCount ?? null,
+      outputTokens: usage?.candidatesTokenCount ?? null,
+      thinkingTokens: usage?.thinkingTokenCount ?? null,
+      totalTokens: usage?.totalTokenCount ?? null,
+    });
+
+    const parsed = JSON.parse(response.text);
+
+    return narrativeResponseSchema.parse(parsed);
+  } catch (error) {
+    console.error("LLM ERROR:", error);
+
+    if (error.status === 404) {
+      const modelError = new Error("LLM_MODEL_UNAVAILABLE");
+
+      modelError.code = "LLM_MODEL_UNAVAILABLE";
+
+      throw modelError;
+    }
+
+    if (error.status === 429) {
+      const quotaError = new Error("LLM_QUOTA_EXCEEDED");
+      quotaError.code = "LLM_QUOTA_EXCEEDED";
+      throw quotaError;
+    }
+
+    if (error instanceof SyntaxError) {
+      const parsingError = new Error("LLM_INVALID_JSON");
+
+      parsingError.code = "LLM_INVALID_JSON";
+
+      throw parsingError;
+    }
+
+    throw error;
+  }
+}
+
+function generateMockResponse() {
   return {
     narrative:
       "Son casi las ocho de la tarde. Estás en la biblioteca terminando una presentación para mañana. " +
-      "Llevas un buen rato trabajando y empiezas a notar el cansancio. " +
-      "¿Prefieres seguir trabajando un poco más o volver a casa?",
+      "Llevas un buen rato trabajando. ¿Prefieres seguir trabajando o volver a casa?",
 
     reprompt: "¿Prefieres seguir trabajando o volver a casa?",
 
@@ -29,7 +110,9 @@ async function generate(prompt) {
 
     narrativeStateUpdate: {
       scene: "trabajando_en_la_biblioteca",
+
       location: "biblioteca universitaria",
+
       timeOfDay: "tarde",
 
       characterEmotion: {

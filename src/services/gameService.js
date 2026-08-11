@@ -1,13 +1,29 @@
 const narrativeService = require("./narrativeService");
+const storySeedService = require("./storySeedService");
+const choiceService = require("./choiceService");
 
 async function startGame(gameState) {
-  const generated = await narrativeService.generateInitialScene(gameState);
+  console.log("START GAME:", {
+    sessionId: gameState.sessionId,
+  });
+
+  const storySeed = storySeedService.generateStorySeed();
+  const generated = await narrativeService.generateInitialScene(
+    gameState,
+    storySeed,
+  );
 
   applyNarrativeStateUpdate(gameState, generated.narrativeStateUpdate);
 
   gameState.currentChoices = generated.choices;
 
   gameState.turn = 1;
+
+  console.log("INITIAL GAME STATE:", {
+    turn: gameState.turn,
+    narrativeState: gameState.narrativeState,
+    currentChoices: gameState.currentChoices,
+  });
 
   return {
     gameState,
@@ -17,17 +33,33 @@ async function startGame(gameState) {
   };
 }
 
-// Por ahora, la función processTurn simplemente incrementa el turno y devuelve un mensaje de confirmación. En el futuro, se implementará la lógica para procesar la elección del usuario y actualizar el estado del juego en consecuencia.
 async function processTurn(gameState, userInput) {
-  console.log("User input:", userInput);
+  console.log("PROCESS TURN:", {
+    turn: gameState.turn,
+    userInput,
+  });
+
+  const generated = await narrativeService.generateNextScene(
+    gameState,
+    userInput,
+  );
+
+  applyNarrativeStateUpdate(gameState, generated.narrativeStateUpdate);
+
+  gameState.currentChoices = generated.choices;
 
   gameState.turn += 1;
 
+  console.log("UPDATED GAME STATE:", {
+    turn: gameState.turn,
+    narrativeState: gameState.narrativeState,
+    currentChoices: gameState.currentChoices,
+  });
+
   return {
     gameState,
-    response:
-      "He recibido tu decisión correctamente. La historia continuará desde aquí.",
-    reprompt: "¿Qué quieres hacer ahora?",
+    response: generated.narrative,
+    reprompt: choiceService.buildChoicesSpeech(generated.choices),
     shouldEndSession: false,
   };
 }

@@ -1,26 +1,23 @@
 const llmService = require("./llmService");
 
+const {
+  buildInitialScenePrompt,
+  buildNextScenePrompt,
+} = require("../prompts/narrativePrompt");
+
 async function generateInitialScene(gameState) {
   const prompt = buildInitialScenePrompt(gameState);
 
-  const result = await llmService.generate(prompt);
-
-  console.log("Generated initial scene:", JSON.stringify(result, null, 2));
-
-  return result;
+  return await llmService.generate(prompt);
 }
 
-function buildInitialScenePrompt(gameState) {
-  return `
-Eres un narrador de historias interactivas.
+async function generateNextScene(gameState, userInput) {
+  const prompt = buildNextScenePrompt(gameState, userInput);
 
-Crea la escena inicial de una historia interactiva.
-
-Estado inicial del juego:
-${JSON.stringify(gameState, null, 2)}
-  `.trim();
+  return await llmService.generate(prompt);
 }
 
 module.exports = {
   generateInitialScene,
+  generateNextScene,
 };
