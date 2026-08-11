@@ -11,6 +11,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "ask-sdk-core": "^2.14.0"
+    "@google/genai": "^2.16.0",
+    "ask-sdk-core": "^2.14.0",
+    "zod": "^4.4.3"
   }
 }
