@@ -1,4 +1,8 @@
 const Alexa = require("ask-sdk-core");
+const createInitialGameState = require("../state/createInitialGameState");
+const sessionService = require("../services/sessionService");
+const gameService = require("../services/gameService");
+const choiceService = require("../services/choiceService");
 
 const LaunchRequestHandler = {
   canHandle(handlerInput) {
@@ -7,14 +11,23 @@ const LaunchRequestHandler = {
     );
   },
 
-  handle(handlerInput) {
-    const speakOutput =
-      "Bienvenida a Mi Aventura. ¿Quieres comenzar la historia?";
+  async handle(handlerInput) {
+    const sessionId = handlerInput.requestEnvelope.session.sessionId;
+    const gameState = createInitialGameState(sessionId);
+    const result = await gameService.startGame(gameState);
 
-    return handlerInput.responseBuilder
-      .speak(speakOutput)
-      .reprompt("¿Quieres comenzar?")
-      .getResponse();
+    sessionService.saveGameState(handlerInput, result.gameState);
+
+    const responseBuilder = handlerInput.responseBuilder
+      .speak(result.response)
+      .reprompt(result.reprompt);
+
+    choiceService.addDynamicEntities(
+      responseBuilder,
+      result.gameState.currentChoices,
+    );
+
+    return responseBuilder.getResponse();
   },
 };
 
