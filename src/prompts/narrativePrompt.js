@@ -39,11 +39,9 @@ INTERACCIÓN:
 - Escribe en español de España y en segunda persona.
 - La escena debe ser breve, clara y natural al ser escuchada mediante voz.
 - Termina en un punto en el que el usuario deba decidir qué hacer.
-- Ofrece siempre 2 o 3 alternativas diferentes y razonables.
+- Finaliza siempre la narración ofreciendo al usuario 2 o 3 opciones diferentes entre las que pueda elegir.
 - Las alternativas deben representar formas distintas de actuar y no simples reformulaciones 
   de la misma decisión.
-- No enumeres ni menciones las opciones dentro de la narración.
-- Genera las alternativas únicamente en choices.
 
 RESTRICCIONES:
 - No menciones salud mental, ansiedad, depresión, indicadores, cuestionarios ni evaluaciones.
@@ -51,7 +49,8 @@ RESTRICCIONES:
 - No atribuyas al usuario real emociones, pensamientos, experiencias, síntomas ni 
   características que no haya expresado.
 - No conviertas sistemáticamente la escena en un examen, una entrega académica, una reunión, 
-  llegar tarde o recibir un mensaje. Busca variedad en las situaciones concretas.`.trim();
+  llegar tarde o recibir un mensaje. Busca variedad en las situaciones concretas.
+- La narrativa debe tener entre 40 y 60 palabras.`.trim();
 
   return prompt;
 }
@@ -90,17 +89,16 @@ INTERACCIÓN:
 - Escribe en español de España y en segunda persona.
 - La escena debe ser breve, clara y natural al ser escuchada mediante voz.
 - Termina en un punto en el que el usuario deba decidir qué hacer.
-- Ofrece siempre 2 o 3 alternativas diferentes y razonables.
+- Finaliza siempre la narración ofreciendo al usuario 2 o 3 opciones diferentes entre las que pueda elegir.
 - Las alternativas deben representar formas distintas de actuar y no simples reformulaciones de la misma decisión.
 - Las opciones deben ser coherentes con la situación y permitir que la historia pueda continuar en direcciones diferentes.
-- No enumeres ni menciones las opciones dentro de la narración.
-- Genera las alternativas únicamente en choices.
 
 RESTRICCIONES:
 - No menciones salud mental, ansiedad, depresión, indicadores, cuestionarios ni evaluaciones.
 - No diagnostiques al usuario.
 - No atribuyas al usuario real emociones, pensamientos, experiencias, síntomas ni características que no haya expresado.
-- No confundas el estado del protagonista ficticio con información sobre el usuario real.`.trim();
+- No confundas el estado del protagonista ficticio con información sobre el usuario real.
+- La narrativa debe tener entre 40 y 60 palabras.`.trim();
 
   return prompt;
 }
