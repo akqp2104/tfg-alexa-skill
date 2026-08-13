@@ -2,6 +2,10 @@ const { GoogleGenAI } = require("@google/genai");
 const narrativeResponseSchema = require("../schemas/narrativeResponseSchema");
 const geminiNarrativeSchema = require("../schemas/geminiNarrativeSchema");
 
+const {
+  validateNarrativeSemantics,
+} = require("../validators/narrativeValidator");
+
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
@@ -52,6 +56,29 @@ async function generateWithGemini(prompt) {
     });
 
     const parsed = JSON.parse(response.text);
+    const validation = narrativeResponseSchema.safeParse(parsed);
+
+    if (!validation.success) {
+      console.error("LLM schema validation failed:", validation.error.issues);
+      const error = new Error("LLM_SCHEMA_INVALID");
+      error.code = "LLM_SCHEMA_INVALID";
+
+      throw error;
+    }
+
+    const semanticsValidation = validateNarrativeSemantics(validation.data);
+
+    if (!semanticsValidation.valid) {
+      console.error(
+        "LLM semantics validation failed:",
+        semanticsValidation.reason,
+      );
+
+      const error = new Error("LLM_SEMANTICS_INVALID");
+      error.code = "LLM_SEMANTICS_INVALID";
+
+      throw error;
+    }
 
     return narrativeResponseSchema.parse(parsed);
   } catch (error) {

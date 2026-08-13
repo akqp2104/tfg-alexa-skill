@@ -35,6 +35,19 @@ const ErrorHandler = {
         .getResponse();
     }
 
+    if (
+      error.code === "LLM_SCHEMA_INVALID" ||
+      error.code === "LLM_SEMANTICS_INVALID"
+    ) {
+      return handlerInput.responseBuilder
+        .speak(
+          "Ha ocurrido un problema al generar la historia. " +
+            "Puedes intentarlo de nuevo.",
+        )
+        .withShouldEndSession(true)
+        .getResponse();
+    }
+
     return handlerInput.responseBuilder
       .speak("Lo siento, se ha producido un error. Inténtalo de nuevo.")
       .reprompt("Puedes intentarlo de nuevo.")

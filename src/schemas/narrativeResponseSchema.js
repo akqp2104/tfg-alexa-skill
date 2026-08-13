@@ -1,14 +1,9 @@
 const { z } = require("zod");
 
 const choiceSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().min(1),
-  synonyms: z.array(z.string()).max(5),
-});
-
-const characterEmotionSchema = z.object({
-  primary: z.string().min(1),
-  intensity: z.number().int().min(0).max(3),
+  id: z.string().min(1).max(80),
+  text: z.string().min(1).max(120),
+  synonyms: z.array(z.string().min(1).max(100)).max(5),
 });
 
 const relationshipSchema = z.object({
@@ -17,31 +12,23 @@ const relationshipSchema = z.object({
 });
 
 const narrativeResponseSchema = z.object({
-  narrative: z.string().min(1).max(900),
-
-  reprompt: z.string().min(1).max(300),
-
+  narrative: z.string().min(1).max(1000),
+  reprompt: z.string().min(1).max(250),
   choices: z.array(choiceSchema).min(2).max(3),
-
   narrativeStateUpdate: z.object({
-    scene: z.string().min(1),
+    scene: z.string().min(1).max(120),
+    location: z.string().max(120).nullable(),
+    timeOfDay: z.string().max(50).nullable(),
+    characterEmotion: z.object({
+      primary: z.string().min(1).max(50),
 
-    location: z.string().nullable(),
-
-    timeOfDay: z.string().nullable(),
-
-    characterEmotion: characterEmotionSchema,
-
-    characterGoal: z.string().nullable(),
-
+      intensity: z.number().int().min(0).max(3),
+    }),
+    characterGoal: z.string().max(200).nullable(),
     relationships: z.record(z.string(), relationshipSchema),
-
-    openConflicts: z.array(z.string()),
-
-    commitments: z.array(z.string()),
-
-    recentEvents: z.array(z.string()).max(5),
-
+    openConflicts: z.array(z.string().min(1).max(250)).max(5),
+    commitments: z.array(z.string().min(1).max(250)).max(5),
+    recentEvents: z.array(z.string().min(1).max(250)).max(5),
     storyProgress: z.enum([
       "introduction",
       "development",
