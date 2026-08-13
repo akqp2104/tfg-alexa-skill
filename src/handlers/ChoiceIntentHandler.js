@@ -2,6 +2,7 @@ const Alexa = require("ask-sdk-core");
 const gameService = require("../services/gameService");
 const sessionService = require("../services/sessionService");
 const choiceService = require("../services/choiceService");
+const progressiveResponseService = require("../services/progressiveResponseService");
 
 const ChoiceIntentHandler = {
   canHandle(handlerInput) {
@@ -34,6 +35,8 @@ const ChoiceIntentHandler = {
     }
 
     console.log("Respuesta del usuario:", userInput);
+
+    await progressiveResponseService.sendAudio(handlerInput);
 
     const result = await gameService.processTurn(gameState, userInput);
 

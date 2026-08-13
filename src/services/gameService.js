@@ -1,6 +1,5 @@
 const narrativeService = require("./narrativeService");
 const storySeedService = require("./storySeedService");
-const choiceService = require("./choiceService");
 
 async function startGame(gameState) {
   console.log("START GAME:", {
@@ -59,7 +58,7 @@ async function processTurn(gameState, userInput) {
   return {
     gameState,
     response: generated.narrative,
-    reprompt: choiceService.buildChoicesSpeech(generated.choices),
+    reprompt: generated.reprompt,
     shouldEndSession: false,
   };
 }
