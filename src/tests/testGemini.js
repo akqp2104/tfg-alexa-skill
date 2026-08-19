@@ -9,7 +9,12 @@ Genera una escena narrativa breve.
 Debe haber exactamente dos opciones.
   `);
 
-  console.log(JSON.stringify(result, null, 2));
+  console.log("Gemini test completed:", { hasResult: Boolean(result) });
 }
 
-test().catch(console.error);
+test().catch((error) => {
+  console.error("Gemini test failed:", {
+    name: error?.name || "Error",
+    code: error?.code || null,
+  });
+});

@@ -4,7 +4,11 @@ const ErrorHandler = {
   },
 
   handle(handlerInput, error) {
-    console.error("Unhandled error:", error);
+    console.error("UNHANDLED ERROR METADATA:", {
+      name: error?.name || "Error",
+      code: error?.code || "UNKNOWN",
+      status: error?.status || null,
+    });
 
     if (error.code === "LLM_MODEL_UNAVAILABLE") {
       return handlerInput.responseBuilder
@@ -42,6 +46,16 @@ const ErrorHandler = {
       return handlerInput.responseBuilder
         .speak(
           "Ha ocurrido un problema al generar la historia. " +
+            "Puedes intentarlo de nuevo.",
+        )
+        .withShouldEndSession(true)
+        .getResponse();
+    }
+
+    if (error.code === "INVALID_SAFETY_FLOW_STATE") {
+      return handlerInput.responseBuilder
+        .speak(
+          "Ha ocurrido un problema al procesar la respuesta de seguridad. " +
             "Puedes intentarlo de nuevo.",
         )
         .withShouldEndSession(true)

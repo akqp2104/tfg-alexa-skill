@@ -34,7 +34,10 @@ const ChoiceIntentHandler = {
         .getResponse();
     }
 
-    console.log("Respuesta del usuario:", userInput);
+    console.log("USER INPUT RECEIVED:", {
+      hasText: Boolean(userInput.rawText),
+      hasResolvedChoice: Boolean(userInput.resolvedChoice),
+    });
 
     await progressiveResponseService.sendAudio(handlerInput);
 

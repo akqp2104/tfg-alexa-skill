@@ -39,6 +39,7 @@ function createInitialGameState(sessionId) {
 
     safetyState: {
       state: "NORMAL",
+      phase: null,
     },
 
     narrativeSummary: "",

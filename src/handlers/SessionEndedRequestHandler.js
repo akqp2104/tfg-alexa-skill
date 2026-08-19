@@ -11,10 +11,7 @@ const SessionEndedRequestHandler = {
   },
 
   handle(handlerInput) {
-    console.log(
-      "SESSION ENDED:",
-      JSON.stringify(handlerInput.requestEnvelope.request, null, 2),
-    );
+    console.log("SESSION ENDED");
 
     return handlerInput.responseBuilder.getResponse();
   },

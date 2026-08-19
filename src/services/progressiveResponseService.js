@@ -29,16 +29,16 @@ async function sendSsml(handlerInput, ssml) {
       },
     };
 
-    console.log(
-      "Sending progressive directive:",
-      JSON.stringify(directive, null, 2),
-    );
+    console.log("Sending progressive directive");
 
     await directiveServiceClient.enqueue(directive);
 
     console.log("Progressive directive accepted by Alexa");
   } catch (error) {
-    console.error("Progressive response error:", error);
+    console.error("Progressive response error metadata:", {
+      name: error?.name || "Error",
+      status: error?.status || null,
+    });
   }
 }
 
@@ -46,7 +46,7 @@ async function sendAudio(handlerInput) {
   const audioUrl = getRandomAudioUrl();
 
   const ssml = `<speak><audio src="${audioUrl}"/></speak>`;
-  console.log("Sending progressive response with audio:", audioUrl);
+  console.log("Sending progressive audio response");
   return sendSsml(handlerInput, ssml);
 }
 
