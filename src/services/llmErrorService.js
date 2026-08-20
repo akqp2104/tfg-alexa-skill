@@ -23,7 +23,12 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isLlmError(error) {
+  return typeof error?.code === "string" && error.code.startsWith("LLM_");
+}
+
 module.exports = {
   isRetryable,
+  isLlmError,
   sleep,
 };

@@ -55,7 +55,7 @@ const triggers = [
   "una situación sencilla se complica inesperadamente",
 ];
 
-const stakes = [
+const stake = [
   "cumplir con una responsabilidad",
   "mantener un compromiso",
   "no perjudicar a otra persona",
@@ -96,12 +96,12 @@ const incompatibleCombinations = [
 
   {
     socialContext: "está tratando con una persona desconocida",
-    stakes: "mantener una buena relación con alguien",
+    stake: "mantener una buena relación con alguien",
   },
 
   {
     socialContext: "está tratando con una persona desconocida",
-    stakes: "mantener un compromiso",
+    stake: "mantener un compromiso",
   },
 
   {
@@ -135,7 +135,7 @@ function generateStorySeed() {
       socialContext: randomItem(socialContexts),
       activity: randomItem(activities),
       trigger: randomItem(triggers),
-      stake: randomItem(stakes),
+      stake: randomItem(stake),
       openingStyle: randomItem(openingStyles),
     };
   } while (!isValidSeed(seed));
@@ -145,4 +145,5 @@ function generateStorySeed() {
 
 module.exports = {
   generateStorySeed,
+  isValidSeed,
 };

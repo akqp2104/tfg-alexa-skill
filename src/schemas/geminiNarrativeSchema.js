@@ -6,10 +6,12 @@ const geminiNarrativeSchema = {
   properties: {
     narrative: {
       type: "string",
+      description: "Escena breve en español, con un máximo de 1000 caracteres.",
     },
 
     reprompt: {
       type: "string",
+      description: "Reprompt breve, con un máximo de 250 caracteres.",
     },
 
     choices: {
@@ -23,16 +25,20 @@ const geminiNarrativeSchema = {
         properties: {
           id: {
             type: "string",
+            description: "Identificador breve y único, máximo 80 caracteres.",
           },
 
           text: {
             type: "string",
+            description: "Opción breve para Alexa, máximo 120 caracteres.",
           },
 
           synonyms: {
             type: "array",
+            maxItems: 5,
             items: {
               type: "string",
+              description: "Sinónimo breve, máximo 100 caracteres.",
             },
           },
         },
@@ -81,10 +87,20 @@ const geminiNarrativeSchema = {
 
         relationships: {
           type: "object",
+          additionalProperties: {
+            type: "object",
+            properties: {
+              trust: { type: "integer", minimum: 0, maximum: 3 },
+              tension: { type: "integer", minimum: 0, maximum: 3 },
+            },
+            required: ["trust", "tension"],
+            additionalProperties: false,
+          },
         },
 
         openConflicts: {
           type: "array",
+          maxItems: 5,
           items: {
             type: "string",
           },
@@ -92,6 +108,7 @@ const geminiNarrativeSchema = {
 
         commitments: {
           type: "array",
+          maxItems: 5,
           items: {
             type: "string",
           },
@@ -99,6 +116,7 @@ const geminiNarrativeSchema = {
 
         recentEvents: {
           type: "array",
+          maxItems: 5,
           items: {
             type: "string",
           },

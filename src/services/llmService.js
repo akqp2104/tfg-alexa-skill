@@ -18,6 +18,8 @@ async function generate({
   zodSchema,
   task = "unknown",
   semanticValidator = null,
+  normalizer = null,
+  maxOutputTokens = 800,
 }) {
   if (USE_LLM_MOCK) {
     throw new Error(`Mock not implemented for task: ${task}`);
@@ -29,6 +31,8 @@ async function generate({
     zodSchema,
     task,
     semanticValidator,
+    normalizer,
+    maxOutputTokens,
   });
 }
 
@@ -38,6 +42,8 @@ async function generateWithGemini({
   zodSchema,
   task,
   semanticValidator,
+  normalizer,
+  maxOutputTokens,
 }) {
   const start = Date.now();
 
@@ -50,7 +56,7 @@ async function generateWithGemini({
       config: {
         responseMimeType: "application/json",
         responseJsonSchema,
-        maxOutputTokens: 800,
+        maxOutputTokens,
       },
     });
 
@@ -84,17 +90,22 @@ async function generateWithGemini({
       throw parsingError;
     }
 
-    const validation = zodSchema.safeParse(parsed);
+    const candidate = normalizer ? normalizer(parsed) : parsed;
+    const validation = zodSchema.safeParse(candidate);
 
     if (!validation.success) {
+      const validationIssues = validation.error.issues.map(formatZodIssue);
+
       console.error("LLM schema validation failed:", {
         task,
-        issueCount: validation.error.issues.length,
+        issueCount: validationIssues.length,
+        issues: validationIssues,
       });
 
       const schemaError = new Error("LLM_SCHEMA_INVALID");
 
       schemaError.code = "LLM_SCHEMA_INVALID";
+      schemaError.validationIssues = validationIssues;
 
       throw schemaError;
     }
@@ -144,6 +155,16 @@ async function generateWithGemini({
 
     throw error;
   }
+}
+
+function formatZodIssue(issue) {
+  return {
+    path: issue.path.join("."),
+    code: issue.code,
+    expected: issue.expected ?? null,
+    minimum: issue.minimum ?? null,
+    maximum: issue.maximum ?? null,
+  };
 }
 
 module.exports = {

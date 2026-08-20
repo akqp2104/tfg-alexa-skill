@@ -41,7 +41,7 @@ const ErrorHandler = {
 
     if (
       error.code === "LLM_SCHEMA_INVALID" ||
-      error.code === "LLM_SEMANTICS_INVALID"
+      error.code === "LLM_SEMANTIC_INVALID"
     ) {
       return handlerInput.responseBuilder
         .speak(
