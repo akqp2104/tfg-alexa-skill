@@ -31,7 +31,7 @@ const geminiIndicatorSchema = {
 
           scoreDelta: {
             type: "integer",
-            minimum: 0,
+            minimum: 1,
             maximum: 2,
           },
 

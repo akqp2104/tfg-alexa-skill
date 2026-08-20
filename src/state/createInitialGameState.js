@@ -22,19 +22,24 @@ function createInitialGameState(sessionId) {
     },
 
     currentChoices: [],
+    lastFocus: null,
 
     indicators: {
-      lowMood: { score: 0, evidenceCount: 0 },
-      anhedonia: { score: 0, evidenceCount: 0 },
-      lowEnergy: { score: 0, evidenceCount: 0 },
-      lowSelfWorth: { score: 0, evidenceCount: 0 },
-      socialWithdrawal: { score: 0, evidenceCount: 0 },
-      worry: { score: 0, evidenceCount: 0 },
-      tension: { score: 0, evidenceCount: 0 },
-      avoidance: { score: 0, evidenceCount: 0 },
-      somaticAnxiety: { score: 0, evidenceCount: 0 },
-      sleepDisturbance: { score: 0, evidenceCount: 0 },
-      concentrationDifficulty: { score: 0, evidenceCount: 0 },
+      lowMood: { score: 0, evidenceCount: 0, focusCount: 0 },
+      anhedonia: { score: 0, evidenceCount: 0, focusCount: 0 },
+      lowEnergy: { score: 0, evidenceCount: 0, focusCount: 0 },
+      lowSelfWorth: { score: 0, evidenceCount: 0, focusCount: 0 },
+      socialWithdrawal: { score: 0, evidenceCount: 0, focusCount: 0 },
+      worry: { score: 0, evidenceCount: 0, focusCount: 0 },
+      tension: { score: 0, evidenceCount: 0, focusCount: 0 },
+      avoidance: { score: 0, evidenceCount: 0, focusCount: 0 },
+      somaticAnxiety: { score: 0, evidenceCount: 0, focusCount: 0 },
+      sleepDisturbance: { score: 0, evidenceCount: 0, focusCount: 0 },
+      concentrationDifficulty: {
+        score: 0,
+        evidenceCount: 0,
+        focusCount: 0,
+      },
     },
 
     safetyState: {

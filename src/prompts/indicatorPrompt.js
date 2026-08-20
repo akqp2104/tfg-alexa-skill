@@ -34,16 +34,18 @@ Indicadores:
 - concentrationDifficulty: dificultades para concentrarse, mantener la atención o tomar decisiones.
 
 Reglas:
-- Evalúa exclusivamente la información aportada por el jugador en este turno.
-- No uses como evidencia hechos inventados previamente por la narración.
-- Una elección aislada no debe interpretarse automáticamente como un indicador.
+- Evalúa la respuesta y la opción elegida por el jugador en este turno teniendo en cuenta el contexto narrativo y las alternativas disponibles.
+- Usa el contexto únicamente para interpretar qué expresa la elección del jugador. Los hechos, emociones o acciones inventados por la narración no son evidencia por sí solos.
+- Una elección aislada puede aportar evidencia cuando su relación con un indicador sea clara dentro del contexto. No es necesario que el jugador formule una declaración explícita sobre sí mismo.
+- Compara la opción elegida con las demás opciones disponibles cuando esto ayude a distinguir una preferencia significativa de una acción exigida por la historia.
+- No registres evidencia si la elección es neutral, ambigua, puramente estratégica o está determinada principalmente por las circunstancias narrativas.
 - Solo registra evidencia cuando exista una relación suficientemente clara con la definición del indicador.
 - Evita inferencias fuertes a partir de respuestas breves o ambiguas.
 - No registres el mismo significado en varios indicadores salvo que existan evidencias diferenciables.
 - Devuelve como máximo 3 evidencias.
 - scoreDelta debe ser:
-  1 para evidencia relevante pero limitada.
-  2 para evidencia clara y explícita.
+  1 para una elección narrativa relevante cuya interpretación dependa del contexto, o para evidencia limitada.
+  2 únicamente para evidencia clara y explícita expresada directamente por el jugador.
 - Si no existe evidencia suficiente, devuelve evidence como array vacío.
   `.trim();
 }

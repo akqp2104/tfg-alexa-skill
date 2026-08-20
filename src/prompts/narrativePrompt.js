@@ -1,3 +1,5 @@
+const { getFocusInstructions } = require("../config/indicatorFocusConfig");
+
 function buildInitialScenePrompt(gameState, storySeed) {
   const prompt = `
 Genera la escena inicial de una historia interactiva contemporánea y realista para Alexa.
@@ -10,7 +12,7 @@ Los parámetros del punto de partida tienen las siguientes funciones:
 - socialContext: situación social inicial del protagonista.
 - activity: actividad que está realizando al comenzar.
 - trigger: acontecimiento que altera la situación inicial.
-- stakes: aquello que hace relevante la situación o decisión.
+- stake: aquello que hace relevante la situación o decisión.
 - openingStyle: forma narrativa en la que debe comenzar la escena.
 
 INSTRUCCIONES NARRATIVAS:
@@ -39,7 +41,8 @@ INTERACCIÓN:
 - Escribe en español de España y en segunda persona.
 - La escena debe ser breve, clara y natural al ser escuchada mediante voz.
 - Termina en un punto en el que el usuario deba decidir qué hacer.
-- Finaliza siempre la narración ofreciendo al usuario 2 o 3 opciones diferentes entre las que pueda elegir.
+- Genera siempre 2 o 3 opciones diferentes en el campo estructurado choices.
+- No enumeres ni anuncies las opciones dentro del campo narrative; la aplicación las añadirá después a la locución.
 - Las alternativas deben representar formas distintas de actuar y no simples reformulaciones 
   de la misma decisión.
 
@@ -54,7 +57,7 @@ RESTRICCIONES:
   return prompt;
 }
 
-function buildNextScenePrompt(gameState, userInput) {
+function buildNextScenePrompt(gameState, userInput, focus) {
   const prompt = `
     Continúa una historia interactiva contemporánea y realista para Alexa.
 
@@ -88,7 +91,8 @@ INTERACCIÓN:
 - Escribe en español de España y en segunda persona.
 - La escena debe ser breve, clara y natural al ser escuchada mediante voz.
 - Termina en un punto en el que el usuario deba decidir qué hacer.
-- Finaliza siempre la narración ofreciendo al usuario 2 o 3 opciones diferentes entre las que pueda elegir.
+- Genera siempre 2 o 3 opciones diferentes en el campo estructurado choices.
+- No enumeres ni anuncies las opciones dentro del campo narrative; la aplicación las añadirá después a la locución.
 - Las alternativas deben representar formas distintas de actuar y no simples reformulaciones de la misma decisión.
 - Las opciones deben ser coherentes con la situación y permitir que la historia pueda continuar en direcciones diferentes.
 
@@ -96,7 +100,22 @@ RESTRICCIONES:
 - No menciones salud mental, ansiedad, depresión, indicadores, cuestionarios ni evaluaciones.
 - No diagnostiques al usuario.
 - No atribuyas al usuario real emociones, pensamientos, experiencias, síntomas ni características que no haya expresado.
-- No confundas el estado del protagonista ficticio con información sobre el usuario real`.trim();
+- No confundas el estado del protagonista ficticio con información sobre el usuario real
+
+Foco de exploración:
+${focus}
+
+Objetivo del foco de exploración:
+${getFocusInstructions(focus)}
+
+Integra de forma natural una situación que permita observar indirectamente
+cómo responde el jugador respecto al foco indicado.
+Integralo solo si puede hacerse sin romper la continuidad de la historia.
+La coherencia narrativa tiene prioridad.
+
+No menciones el nombre del foco ni hagas preguntas clínicas o explícitas.
+
+`.trim();
 
   return prompt;
 }

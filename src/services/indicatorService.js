@@ -1,5 +1,17 @@
 function applyEvidence(indicators, analysis) {
+  const evidenceByIndicator = new Map();
+
   for (const item of analysis.evidence) {
+    const current = evidenceByIndicator.get(item.indicator);
+
+    // Una respuesta del LLM puede repetir un indicador. Conservamos solo la
+    // evidencia con mayor peso para que el turno se contabilice una sola vez.
+    if (!current || item.scoreDelta > current.scoreDelta) {
+      evidenceByIndicator.set(item.indicator, item);
+    }
+  }
+
+  for (const item of evidenceByIndicator.values()) {
     const indicator = indicators[item.indicator];
 
     if (!indicator) {

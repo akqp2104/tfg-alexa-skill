@@ -1,10 +1,18 @@
 function evaluate(indicators = {}) {
   return {
-    lowEnergyScore: indicators.lowEnergy || 0,
-    ruminationScore: indicators.rumination || 0,
-    socialWithdrawalScore: indicators.socialWithdrawal || 0,
-    socialConnectionScore: indicators.socialConnection || 0,
+    lowEnergyScore: getScore(indicators.lowEnergy),
+    ruminationScore: getScore(indicators.rumination),
+    socialWithdrawalScore: getScore(indicators.socialWithdrawal),
+    socialConnectionScore: getScore(indicators.socialConnection),
   };
+}
+
+function getScore(indicator) {
+  if (typeof indicator === "number") {
+    return indicator;
+  }
+
+  return indicator?.score ?? 0;
 }
 
 function buildSummary(evaluation) {
