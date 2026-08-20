@@ -2,17 +2,25 @@ const Alexa = require("ask-sdk-core");
 const gameService = require("../services/gameService");
 const sessionService = require("../services/sessionService");
 const choiceService = require("../services/choiceService");
-const progressiveResponseService = require("../services/progressiveResponseService");
+const aplService = require("../services/aplService");
 
 const ChoiceIntentHandler = {
   canHandle(handlerInput) {
-    return (
+    const isChoiceIntent =
       Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
-      Alexa.getIntentName(handlerInput.requestEnvelope) === "ChoiceIntent"
-    );
+      Alexa.getIntentName(handlerInput.requestEnvelope) === "ChoiceIntent";
+
+    if (!isChoiceIntent) {
+      return false;
+    }
+
+    const gameState = sessionService.getGameState(handlerInput);
+
+    return !gameState || gameState.safetyState?.state === "NORMAL";
   },
 
   async handle(handlerInput) {
+    const requestStart = Date.now();
     const gameState = sessionService.getGameState(handlerInput);
 
     if (!gameState) {
@@ -39,29 +47,63 @@ const ChoiceIntentHandler = {
       hasResolvedChoice: Boolean(userInput.resolvedChoice),
     });
 
-    await progressiveResponseService.sendAudio(handlerInput);
-
     const result = await gameService.processTurn(gameState, userInput);
 
     sessionService.saveGameState(handlerInput, result.gameState);
 
-    const responseBuilder = handlerInput.responseBuilder.speak(result.response);
+    const responseBuilder = handlerInput.responseBuilder;
 
     if (result.shouldEndSession) {
-      return responseBuilder.withShouldEndSession(true).getResponse();
+      logRequestLatency("ChoiceIntent", requestStart);
+      return responseBuilder
+        .speak(result.response)
+        .withShouldEndSession(true)
+        .getResponse();
     }
 
-    // Cargar las opciones que acaba
-    // de generar el siguiente turno.
-    choiceService.addDynamicEntities(
-      responseBuilder,
-      result.gameState.currentChoices,
-    );
+    let usesAplSpeech = false;
 
-    return responseBuilder
-      .reprompt(result.reprompt || "¿Qué decides hacer?")
-      .getResponse();
+    if (result.gameState.safetyState?.state === "NORMAL") {
+      // Cargar las opciones que acaba de generar el siguiente turno.
+      choiceService.addDynamicEntities(
+        responseBuilder,
+        result.gameState.currentChoices,
+      );
+      usesAplSpeech = aplService.addSpokenChoicesDocument(
+        handlerInput,
+        responseBuilder,
+        result.gameState.currentChoices,
+        `choices-turn-${result.gameState.turn}`,
+        result.response,
+      );
+    }
+
+    if (!usesAplSpeech) {
+      responseBuilder.speak(result.response);
+    }
+
+    if (!usesAplSpeech) {
+      responseBuilder
+        .reprompt(result.reprompt || "¿Qué decides hacer?")
+        .withShouldEndSession(false);
+    }
+
+    const response = responseBuilder.getResponse();
+
+    logRequestLatency("ChoiceIntent", requestStart);
+
+    return response;
   },
 };
+
+function logRequestLatency(requestType, start) {
+  const totalMs = Date.now() - start;
+
+  console.log("ALEXA REQUEST LATENCY:", {
+    requestType,
+    totalMs,
+    exceedsEightSeconds: totalMs > 8000,
+  });
+}
 
 module.exports = ChoiceIntentHandler;

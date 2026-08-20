@@ -9,6 +9,7 @@ const ErrorHandler = require("./handlers/ErrorHandler");
 const SafetyYesIntentHandler = require("./handlers/SafetyYesIntentHandler");
 const SafetyNoIntentHandler = require("./handlers/SafetyNoIntentHandler");
 const SafetyClarificationIntentHandler = require("./handlers/SafetyClarificationIntent");
+const AplNarrationCompleteHandler = require("./handlers/AplNarrationCompleteHandler");
 
 const RequestLoggingInterceptor = {
   process(handlerInput) {
@@ -32,6 +33,7 @@ const ResponseLoggingInterceptor = {
 exports.handler = Alexa.SkillBuilders.custom()
   .addRequestHandlers(
     LaunchRequestHandler,
+    AplNarrationCompleteHandler,
     SafetyYesIntentHandler,
     SafetyNoIntentHandler,
     SafetyClarificationIntentHandler,

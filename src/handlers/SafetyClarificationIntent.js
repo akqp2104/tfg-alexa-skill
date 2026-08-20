@@ -3,6 +3,7 @@ const sessionService = require("../services/sessionService");
 const safetyService = require("../services/safetyService");
 const safetyFlowService = require("../services/safetyFlowService");
 const choiceService = require("../services/choiceService");
+const aplService = require("../services/aplService");
 
 const SafetyClarificationIntentHandler = {
   canHandle(handlerInput) {
@@ -83,6 +84,12 @@ const SafetyClarificationIntentHandler = {
       choiceService.addDynamicEntities(
         responseBuilder,
         flowResult.gameState.currentChoices,
+      );
+      aplService.addChoicesDocument(
+        handlerInput,
+        responseBuilder,
+        flowResult.gameState.currentChoices,
+        `choices-turn-${flowResult.gameState.turn}`,
       );
     }
 

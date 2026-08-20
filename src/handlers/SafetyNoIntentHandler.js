@@ -2,6 +2,7 @@ const Alexa = require("ask-sdk-core");
 const sessionService = require("../services/sessionService");
 const safetyFlowService = require("../services/safetyFlowService");
 const choiceService = require("../services/choiceService");
+const aplService = require("../services/aplService");
 
 const SafetyNoIntentHandler = {
   canHandle(handlerInput) {
@@ -63,10 +64,18 @@ const SafetyNoIntentHandler = {
      * Simplemente volvemos a presentar
      * las opciones narrativas que ya existían.
      */
-    choiceService.addDynamicEntities(
-      responseBuilder,
-      result.gameState.currentChoices,
-    );
+    if (result.resumeNarrative) {
+      choiceService.addDynamicEntities(
+        responseBuilder,
+        result.gameState.currentChoices,
+      );
+      aplService.addChoicesDocument(
+        handlerInput,
+        responseBuilder,
+        result.gameState.currentChoices,
+        `choices-turn-${result.gameState.turn}`,
+      );
+    }
 
     return responseBuilder.reprompt(result.reprompt).getResponse();
   },

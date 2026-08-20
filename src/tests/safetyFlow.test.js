@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const safetyFlowService = require("../services/safetyFlowService");
 const SafetyYesIntentHandler = require("../handlers/SafetyYesIntentHandler");
 const SafetyNoIntentHandler = require("../handlers/SafetyNoIntentHandler");
+const ChoiceIntentHandler = require("../handlers/ChoiceIntentHandler");
 const {
   buildSafetyPrompt,
   buildSafetyClarificationPrompt,
@@ -246,4 +247,30 @@ test("an ambiguous direct answer keeps the safety question active", () => {
   assert.equal(state.safetyState.phase, "DIRECT_RISK_CHECK");
   assert.equal(result.shouldEndSession, false);
   assert.match(result.response, /Necesito preguntarlo claramente/);
+});
+
+test("narrative choices are not restored between safety questions", () => {
+  const state = createGameState();
+  safetyFlowService.handleSafetyTriggered(state, "UNKNOWN");
+  const handlerInput = createHandlerInput("AMAZON.NoIntent", state);
+
+  const response = SafetyNoIntentHandler.handle(handlerInput);
+
+  assert.equal(state.safetyState.questionTarget, "OTHERS");
+  assert.equal(response.directive, undefined);
+  assert.match(response.outputSpeech, /daño a otra persona/);
+});
+
+test("ChoiceIntent does not intercept an active safety flow", () => {
+  const state = createGameState();
+  const normalInput = createHandlerInput("ChoiceIntent", state);
+
+  assert.equal(ChoiceIntentHandler.canHandle(normalInput), true);
+
+  state.safetyState = {
+    state: "SAFETY_TRIGGERED",
+    phase: "DIRECT_RISK_CHECK",
+  };
+
+  assert.equal(ChoiceIntentHandler.canHandle(normalInput), false);
 });

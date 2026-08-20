@@ -11,7 +11,13 @@ const SessionEndedRequestHandler = {
   },
 
   handle(handlerInput) {
-    console.log("SESSION ENDED");
+    const request = handlerInput.requestEnvelope.request;
+
+    console.log("SESSION ENDED:", {
+      reason: request.reason || null,
+      errorType: request.error?.type || null,
+      errorMessage: request.error?.message || null,
+    });
 
     return handlerInput.responseBuilder.getResponse();
   },
