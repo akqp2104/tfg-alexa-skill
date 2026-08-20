@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "test": "node src/tests/safetyFlow.test.js"
+    "test": "node --test src/tests/*.test.js"
   },
   "keywords": [],
   "author": "",
