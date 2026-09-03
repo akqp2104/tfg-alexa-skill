@@ -106,9 +106,27 @@ test("the narrative retry tells Gemini what must be corrected", async () => {
   const validResult = {
     narrative: "Escena",
     reprompt: "Pregunta",
-    choices: [],
-    narrativeStateUpdate: {},
+    storyComplete: false,
+    choices: [
+      { id: "talk", text: "Hablar con calma", synonyms: ["hablar"] },
+      { id: "wait", text: "Esperar un momento", synonyms: ["esperar"] },
+    ],
+    narrativeStateUpdate: {
+      scene: "inicio de la historia",
+      location: "cafetería",
+      timeOfDay: "tarde",
+      characterEmotion: { primary: "curiosidad", intensity: 1 },
+      characterGoal: "comprender la situación",
+      relationships: {},
+      openConflicts: ["Decidir cómo responder"],
+      commitments: [],
+      recentEvents: ["Comienza una conversación"],
+      storyProgress: "introduction",
+    },
   };
+
+  assert.equal(narrativeResponseSchema.safeParse(validResult).success, true);
+  assert.deepEqual(validateNarrativeSemantics(validResult), { valid: true });
 
   llmService.generate = async ({ prompt }) => {
     prompts.push(prompt);
