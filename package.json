@@ -1,15 +1,25 @@
 {
   "name": "tfg-alexa-skill",
   "version": "1.0.0",
-  "description": "",
+  "description": "Skill de Alexa para narrativa interactiva adaptativa mediante un modelo de lenguaje",
   "main": "src/index.js",
   "scripts": {
     "test": "node --test src/tests/*.test.js",
     "test:gemini": "node src/scripts/testGemini.js",
     "metrics:analyze": "node src/scripts/analyzeMetrics.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "alexa",
+    "alexa-skill",
+    "interactive-storytelling",
+    "adaptive-narrative",
+    "llm",
+    "gemini",
+    "nodejs",
+    "aws-lambda",
+    "conversational-ai"
+  ],
+  "author": "Andrea Quiles Pichel",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
