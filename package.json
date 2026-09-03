@@ -4,7 +4,8 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "test": "node --test src/tests/*.test.js"
+    "test": "node --test src/tests/*.test.js",
+    "test:gemini": "node src/scripts/testGemini.js"
   },
   "keywords": [],
   "author": "",
