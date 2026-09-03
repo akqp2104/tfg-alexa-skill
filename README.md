@@ -87,12 +87,6 @@ npm install
 npm test
 ```
 
-La prueba manual contra Gemini es independiente de los tests y consume cuota:
-
-```bash
-npm run test:gemini
-```
-
 Necesita `GEMINI_API_KEY`; el modelo puede configurarse mediante `LLM_MODEL`.
 Las métricas técnicas y su análisis se describen en
 [`docs/metrics.md`](docs/metrics.md).

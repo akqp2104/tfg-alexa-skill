@@ -5,7 +5,6 @@
   "main": "src/index.js",
   "scripts": {
     "test": "node --test src/tests/*.test.js",
-    "test:gemini": "node src/scripts/testGemini.js",
     "metrics:analyze": "node src/scripts/analyzeMetrics.js"
   },
   "keywords": [
