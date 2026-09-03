@@ -1,9 +1,5 @@
 const { GoogleGenAI } = require("@google/genai");
 
-const {
-  validateNarrativeSemantics,
-} = require("../validators/narrativeValidator");
-
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
@@ -64,18 +60,13 @@ async function generateWithGemini({
 
     const usage = response.usageMetadata;
 
-    console.log("LLM metrics:", {
+    console.log("LLM_CALL_SUCCESS", {
       task,
       model: MODEL,
       latencyMs,
-
-      inputTokens: usage?.promptTokenCount ?? null,
-
-      outputTokens: usage?.candidatesTokenCount ?? null,
-
-      thinkingTokens: usage?.thoughtsTokenCount ?? null,
-
-      totalTokens: usage?.totalTokenCount ?? null,
+      promptTokenCount: usage?.promptTokenCount ?? null,
+      candidatesTokenCount: usage?.candidatesTokenCount ?? null,
+      totalTokenCount: usage?.totalTokenCount ?? null,
     });
 
     let parsed;
@@ -153,7 +144,22 @@ async function generateWithGemini({
       throw modelError;
     }
 
-    throw error;
+    if (typeof error?.code === "string" && error.code.startsWith("LLM_")) {
+      throw error;
+    }
+
+    if ([500, 502, 503, 504].includes(error?.status)) {
+      const serviceError = new Error("LLM_SERVICE_UNAVAILABLE");
+      serviceError.code = "LLM_SERVICE_UNAVAILABLE";
+      serviceError.status = error.status;
+      throw serviceError;
+    }
+
+    const providerError = new Error("LLM_PROVIDER_ERROR");
+    providerError.code = "LLM_PROVIDER_ERROR";
+    providerError.status = error?.status;
+
+    throw providerError;
   }
 }
 

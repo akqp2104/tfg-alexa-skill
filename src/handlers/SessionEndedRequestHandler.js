@@ -16,7 +16,6 @@ const SessionEndedRequestHandler = {
     console.log("SESSION ENDED:", {
       reason: request.reason || null,
       errorType: request.error?.type || null,
-      errorMessage: request.error?.message || null,
     });
 
     return handlerInput.responseBuilder.getResponse();

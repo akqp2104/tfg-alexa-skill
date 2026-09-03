@@ -2,7 +2,9 @@ function isRetryable(error) {
   if (
     error.code === "LLM_SCHEMA_INVALID" ||
     error.code === "LLM_SEMANTIC_INVALID" ||
-    error.code === "LLM_INVALID_JSON"
+    error.code === "LLM_INVALID_JSON" ||
+    error.code === "LLM_SERVICE_UNAVAILABLE" ||
+    error.code === "LLM_PROVIDER_ERROR"
   ) {
     return true;
   }

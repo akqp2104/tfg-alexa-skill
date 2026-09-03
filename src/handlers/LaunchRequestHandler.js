@@ -14,8 +14,7 @@ const LaunchRequestHandler = {
 
   async handle(handlerInput) {
     const requestStart = Date.now();
-    const sessionId = handlerInput.requestEnvelope.session.sessionId;
-    const gameState = createInitialGameState(sessionId);
+    const gameState = createInitialGameState();
 
     const result = await gameService.startGame(gameState);
 

@@ -16,7 +16,7 @@ const indicatorNames = [
 
 const indicatorEvidenceSchema = z.object({
   indicator: z.enum(indicatorNames),
-  scoreDelta: z.number().int().min(1).max(2),
+  scoreDelta: z.number().int().min(1).max(2), // 1: evidencia limitada, 2: evidencia clara
   evidence: z.string().min(1).max(250),
 });
 

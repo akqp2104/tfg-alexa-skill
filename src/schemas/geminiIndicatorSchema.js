@@ -37,15 +37,20 @@ const geminiIndicatorSchema = {
 
           evidence: {
             type: "string",
+            maxLength: 250,
+            description:
+              "Justificación genérica y breve, sin citas textuales ni identificadores personales.",
           },
         },
 
         required: ["indicator", "scoreDelta", "evidence"],
+        additionalProperties: false,
       },
     },
   },
 
   required: ["evidence"],
+  additionalProperties: false,
 };
 
 module.exports = geminiIndicatorSchema;
