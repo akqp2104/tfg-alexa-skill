@@ -1,0 +1,56 @@
+function createInitialGameState() {
+  return {
+    turn: 0,
+
+    narrativeState: {
+      scene: "inicio",
+      location: null,
+      timeOfDay: null,
+
+      characterEmotion: {
+        primary: "neutral",
+        intensity: 0,
+      },
+
+      characterGoal: null,
+      relationships: {},
+      openConflicts: [],
+      commitments: [],
+      recentEvents: [],
+      storyProgress: "introduction",
+      storyComplete: false,
+    },
+
+    currentChoices: [],
+    lastFocus: null,
+
+    indicators: {
+      lowMood: { score: 0, evidenceCount: 0, focusCount: 0 },
+      anhedonia: { score: 0, evidenceCount: 0, focusCount: 0 },
+      lowEnergy: { score: 0, evidenceCount: 0, focusCount: 0 },
+      lowSelfWorth: { score: 0, evidenceCount: 0, focusCount: 0 },
+      socialWithdrawal: { score: 0, evidenceCount: 0, focusCount: 0 },
+      worry: { score: 0, evidenceCount: 0, focusCount: 0 },
+      tension: { score: 0, evidenceCount: 0, focusCount: 0 },
+      avoidance: { score: 0, evidenceCount: 0, focusCount: 0 },
+      somaticAnxiety: { score: 0, evidenceCount: 0, focusCount: 0 },
+      sleepDisturbance: { score: 0, evidenceCount: 0, focusCount: 0 },
+      concentrationDifficulty: {
+        score: 0,
+        evidenceCount: 0,
+        focusCount: 0,
+      },
+    },
+
+    safetyState: {
+      state: "NORMAL",
+      phase: null,
+    },
+
+    narrativeSummary: "",
+
+    evaluation: null,
+  };
+}
+
+module.exports = createInitialGameState;
