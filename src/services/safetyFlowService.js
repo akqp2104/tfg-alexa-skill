@@ -1,6 +1,20 @@
 const SELF = "SELF";
 const OTHERS = "OTHERS";
 
+function handleSafetyResult(gameState, safetyAnalysis) {
+  if (safetyAnalysis.state === "UNCERTAIN") {
+    return handleUncertain(gameState);
+  }
+
+  if (safetyAnalysis.state === "SAFETY_TRIGGERED") {
+    return handleSafetyTriggered(gameState, safetyAnalysis.riskTarget);
+  }
+
+  const error = new Error("INVALID_SAFETY_RESULT");
+  error.code = "INVALID_SAFETY_RESULT";
+  throw error;
+}
+
 function handleUncertain(gameState) {
   gameState.safetyState = {
     state: "UNCERTAIN",
@@ -215,6 +229,7 @@ function finalize(gameState, riskTarget) {
 }
 
 module.exports = {
+  handleSafetyResult,
   handleUncertain,
   handleSafetyTriggered,
   confirmUncertainIsReal,

@@ -12,12 +12,10 @@ const geminiSafetySchema = {
       enum: ["NONE", "SELF", "OTHERS", "BOTH", "UNKNOWN"],
     },
 
-    reason: {
-      type: "string",
-    },
   },
 
-  required: ["state", "riskTarget", "reason"],
+  required: ["state", "riskTarget"],
+  additionalProperties: false,
 };
 
 module.exports = geminiSafetySchema;

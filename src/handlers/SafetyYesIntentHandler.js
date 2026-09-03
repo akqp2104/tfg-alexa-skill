@@ -46,13 +46,13 @@ const SafetyYesIntentHandler = {
       throw error;
     }
 
-    sessionService.saveGameState(handlerInput, result.gameState);
-
     const responseBuilder = handlerInput.responseBuilder.speak(result.response);
 
     if (result.shouldEndSession) {
       return responseBuilder.withShouldEndSession(true).getResponse();
     }
+
+    sessionService.saveGameState(handlerInput, result.gameState);
 
     return responseBuilder.reprompt(result.reprompt).getResponse();
   },

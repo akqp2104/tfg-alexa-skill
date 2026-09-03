@@ -70,8 +70,6 @@ const SafetyClarificationIntentHandler = {
       }
     }
 
-    sessionService.saveGameState(handlerInput, flowResult.gameState);
-
     const responseBuilder = handlerInput.responseBuilder.speak(
       flowResult.response,
     );
@@ -79,6 +77,8 @@ const SafetyClarificationIntentHandler = {
     if (flowResult.shouldEndSession) {
       return responseBuilder.withShouldEndSession(true).getResponse();
     }
+
+    sessionService.saveGameState(handlerInput, flowResult.gameState);
 
     if (flowResult.resumeNarrative) {
       choiceService.addDynamicEntities(

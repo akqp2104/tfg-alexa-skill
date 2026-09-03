@@ -5,9 +5,17 @@ const {
   buildSafetyPrompt,
   buildSafetyClarificationPrompt,
 } = require("../prompts/safetyPrompt");
+const {
+  buildSafetyContext,
+  buildChoiceContext,
+} = require("./llmContextService");
 
 async function analyze({ userInput, narrativeState, currentChoices }) {
-  const prompt = buildSafetyPrompt(userInput, narrativeState, currentChoices);
+  const prompt = buildSafetyPrompt(
+    userInput,
+    buildSafetyContext(narrativeState),
+    buildChoiceContext(currentChoices),
+  );
 
   return llmService.generate({
     prompt,

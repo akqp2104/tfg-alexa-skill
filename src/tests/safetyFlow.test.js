@@ -70,6 +70,23 @@ test("an uncertain message pauses the narrative to clarify the real world", () =
   assert.equal(result.shouldEndSession, false);
 });
 
+test("the generic safety router handles uncertain and triggered results", () => {
+  const uncertainState = createGameState();
+  const uncertain = safetyFlowService.handleSafetyResult(uncertainState, {
+    state: "UNCERTAIN",
+    riskTarget: "UNKNOWN",
+  });
+  assert.equal(uncertain.gameState.safetyState.phase, "OPEN_SAFETY_CHECK");
+
+  const triggeredState = createGameState();
+  const triggered = safetyFlowService.handleSafetyResult(triggeredState, {
+    state: "SAFETY_TRIGGERED",
+    riskTarget: "OTHERS",
+  });
+  assert.equal(triggered.gameState.safetyState.phase, "DIRECT_RISK_CHECK");
+  assert.equal(triggered.gameState.safetyState.questionTarget, "OTHERS");
+});
+
 test("a fictional clarification resumes the existing adventure", () => {
   const state = createGameState();
   const result = safetyFlowService.dismissUncertain(state);
