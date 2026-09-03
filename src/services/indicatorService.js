@@ -20,7 +20,7 @@ function applyEvidence(indicators, analysis) {
     const indicator = indicators[item.indicator];
 
     if (!indicator) {
-      console.warn("Unknown indicator:", item.indicator);
+      console.warn("UNKNOWN_INDICATOR_IGNORED");
 
       continue;
     }

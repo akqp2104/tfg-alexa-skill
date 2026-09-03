@@ -6,6 +6,8 @@ const sessionService = require("../services/sessionService");
 const { sanitizeError } = require("../services/errorSanitizationService");
 const gameService = require("../services/gameService");
 const safetyService = require("../services/safetyService");
+const indicatorAnalysisService = require("../services/indicatorAnalysisService");
+const narrativeService = require("../services/narrativeService");
 const narrativeResponseSchema = require("../schemas/narrativeResponseSchema");
 const safetyResponseSchema = require("../schemas/safetyResponseSchema");
 const { buildIndicatorPrompt } = require("../prompts/indicatorPrompt");
@@ -95,6 +97,83 @@ test("TURN_FAILED logs only a sanitized error object", async () => {
   }
 });
 
+test("game logs omit safety classifications and indicator results", async () => {
+  const originalSafetyAnalyze = safetyService.analyze;
+  const originalIndicatorAnalyze = indicatorAnalysisService.analyze;
+  const originalGenerateNextScene = narrativeService.generateNextScene;
+  const originalConsoleLog = console.log;
+  const loggedEntries = [];
+  const state = createInitialGameState("minimal-logs");
+  state.turn = 12;
+  state.narrativeState.storyProgress = "resolution";
+  state.currentChoices = [{ id: "continue", text: "Continuar", synonyms: [] }];
+  state.indicators.worry = {
+    score: 2,
+    evidenceCount: 1,
+    focusCount: 2,
+  };
+
+  safetyService.analyze = async () => ({ state: "NORMAL", riskTarget: "NONE" });
+  indicatorAnalysisService.analyze = async () => ({
+    evidence: [
+      {
+        indicator: "worry",
+        scoreDelta: 2,
+        evidence: "Contenido temporal que no debe registrarse",
+      },
+    ],
+  });
+  narrativeService.generateNextScene = async () => ({
+    narrative: "La historia termina.",
+    reprompt: "",
+    storyComplete: true,
+    choices: [],
+    narrativeStateUpdate: {
+      recentEvents: ["El conflicto ficticio queda resuelto"],
+    },
+  });
+  console.log = (...args) => loggedEntries.push(args);
+
+  try {
+    await gameService.processTurn(state, {
+      rawText: "Respuesta privada",
+      resolvedChoice: { id: "continue", name: "Continuar" },
+    });
+
+    safetyService.analyze = async () => ({
+      state: "UNCERTAIN",
+      riskTarget: "UNKNOWN",
+    });
+    await gameService.processTurn(createInitialGameState(), {
+      rawText: "Otra respuesta privada",
+      resolvedChoice: null,
+    });
+
+    const serializedLogs = JSON.stringify(loggedEntries);
+    assert.doesNotMatch(serializedLogs, /worry|moderate|SAFETY_TRIGGERED/);
+    assert.doesNotMatch(serializedLogs, /NORMAL|UNCERTAIN|UNKNOWN/);
+    assert.doesNotMatch(serializedLogs, /Respuesta privada|Contenido temporal/);
+
+    assert.deepEqual(findLogMetadata(loggedEntries, "INDICATORS_UPDATED"), {
+      turn: 12,
+      updated: true,
+    });
+    assert.deepEqual(findLogMetadata(loggedEntries, "FINAL_EVALUATION_CREATED"), {
+      turn: 13,
+      created: true,
+    });
+    assert.deepEqual(findLogMetadata(loggedEntries, "TURN_SAFETY_REDIRECT"), {
+      turn: 0,
+      redirected: true,
+    });
+  } finally {
+    safetyService.analyze = originalSafetyAnalyze;
+    indicatorAnalysisService.analyze = originalIndicatorAnalyze;
+    narrativeService.generateNextScene = originalGenerateNextScene;
+    console.log = originalConsoleLog;
+  }
+});
+
 test("narrative state rejects fields about the real user", () => {
   const response = {
     narrative: "La escena continúa.",
@@ -154,3 +233,7 @@ test("indicator and summary prompts prohibit retaining identifiers", () => {
     /datos personales proporcionados accidentalmente/,
   );
 });
+
+function findLogMetadata(entries, event) {
+  return entries.find(([loggedEvent]) => loggedEvent === event)?.[1];
+}

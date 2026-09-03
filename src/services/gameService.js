@@ -122,13 +122,13 @@ async function processTurn(gameState, userInput) {
       turn: workingState.turn,
       stage: "safety",
       durationMs: metrics.safetyDurationMs,
-      safetyState: safetyAnalysis.state,
+      completed: true,
     });
 
     if (safetyAnalysis.state !== "NORMAL") {
       console.log("TURN_SAFETY_REDIRECT", {
         turn: workingState.turn,
-        safetyState: safetyAnalysis.state,
+        redirected: true,
       });
 
       const result = await safetyFlowService.handleSafetyResult(
@@ -175,7 +175,7 @@ async function processTurn(gameState, userInput) {
 
     console.log("INDICATORS_UPDATED", {
       turn: workingState.turn,
-      indicators: summarizeIndicators(workingState.indicators),
+      updated: true,
     });
 
     currentStage = "story_progress";
@@ -213,9 +213,7 @@ async function processTurn(gameState, userInput) {
 
       console.log("FOCUS_SELECTED", {
         turn: workingState.turn,
-        focus,
-        score: workingState.indicators[focus]?.score ?? 0,
-        evidenceCount: workingState.indicators[focus]?.evidenceCount ?? 0,
+        selected: true,
       });
     } else {
       console.log("FOCUS_SKIPPED", {
@@ -237,7 +235,6 @@ async function processTurn(gameState, userInput) {
     console.log("TURN_STAGE_START", {
       turn: workingState.turn,
       stage: "narrative_generation",
-      focus,
       forceEnding,
     });
 
@@ -353,20 +350,7 @@ async function processTurn(gameState, userInput) {
 
       console.log("FINAL_EVALUATION_CREATED", {
         turn: workingState.turn,
-
-        relevantIndicators: evaluation.relevantIndicators.map((item) => ({
-          indicator: item.indicator,
-
-          level: item.level,
-
-          evidenceCount: item.evidenceCount,
-
-          explorationCount: item.explorationCount,
-        })),
-
-        exploredIndicators: evaluation.exploredIndicators,
-
-        totalIndicators: evaluation.totalIndicators,
+        created: true,
       });
 
       logCompletedTurn({
@@ -529,19 +513,6 @@ function logCompletedTurn({
     storyProgress,
     exceedsEightSeconds: totalDurationMs > 8000,
   });
-}
-
-function summarizeIndicators(indicators = {}) {
-  return Object.fromEntries(
-    Object.entries(indicators).map(([name, value]) => [
-      name,
-      {
-        score: value.score,
-        evidenceCount: value.evidenceCount,
-        focusCount: value.focusCount ?? value.explorationCount ?? 0,
-      },
-    ]),
-  );
 }
 
 function isRecoverableLlmError(error) {
