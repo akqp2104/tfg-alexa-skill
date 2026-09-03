@@ -75,7 +75,8 @@ servicio externo.
 
 Se puede decir «ayuda» para obtener orientación o «parar» para terminar la
 sesión. La evaluación final es orientativa, se basa exclusivamente en las
-decisiones tomadas durante la experiencia y no constituye un diagnóstico.
+respuestas y decisiones realizadas durante la experiencia y no constituye un
+diagnóstico.
 
 ## Desarrollo
 
