@@ -16,7 +16,8 @@ const indicatorNames = [
 
 const indicatorEvidenceSchema = z.object({
   indicator: z.enum(indicatorNames),
-  scoreDelta: z.number().int().min(1).max(2), // 1: evidencia limitada, 2: evidencia clara
+  // Limitar el peso evita que una sola respuesta domine la evaluación.
+  scoreDelta: z.number().int().min(1).max(2),
   evidence: z.string().min(1).max(250),
 });
 

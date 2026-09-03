@@ -1,5 +1,3 @@
-// Contrato de esquema para la respuesta de la API de Gemini
-
 const geminiNarrativeSchema = {
   type: "object",
 

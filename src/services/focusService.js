@@ -46,9 +46,7 @@ function calculatePriority(indicator) {
   const evidenceCount = Math.min(indicator.evidenceCount || 0, 3);
   const focusCount = getFocusCount(indicator);
 
-  // Priorizar señales que ya han aparecido;
-  // Favorecer dimensiones poco exploradas;
-  // Penalizar las dimensiones que se han explorado muchas veces.
+  // Equilibra relevancia y cobertura para no insistir siempre en la señal mayor.
 
   return score * 2 + evidenceCount - focusCount * 1.5;
 }

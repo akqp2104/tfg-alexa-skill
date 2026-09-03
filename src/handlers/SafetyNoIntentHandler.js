@@ -56,14 +56,7 @@ const SafetyNoIntentHandler = {
 
     sessionService.saveGameState(handlerInput, result.gameState);
 
-    /*
-     * UNCERTAIN + NO:
-     * vuelve a NORMAL, pero no procesamos
-     * la expresión ambigua como evidencia.
-     *
-     * Simplemente volvemos a presentar
-     * las opciones narrativas que ya existían.
-     */
+    // La respuesta ambigua se descarta para que no se convierta en evidencia.
     if (result.resumeNarrative) {
       choiceService.addDynamicEntities(
         responseBuilder,

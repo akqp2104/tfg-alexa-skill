@@ -1,5 +1,3 @@
-// src/services/indicatorAnalysisService.js
-
 const llmService = require("./llmService");
 const indicatorAnalysisSchema = require("../schemas/indicatorAnalysisSchema");
 const geminiIndicatorSchema = require("../schemas/geminiIndicatorSchema");

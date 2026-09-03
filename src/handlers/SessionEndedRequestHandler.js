@@ -1,5 +1,3 @@
-// handlers/SessionEndedRequestHandler.js
-
 const Alexa = require("ask-sdk-core");
 
 const SessionEndedRequestHandler = {

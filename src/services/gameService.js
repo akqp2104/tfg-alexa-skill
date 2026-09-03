@@ -101,9 +101,6 @@ async function processTurn(gameState, userInput) {
       currentChoicesCount: workingState.currentChoices?.length || 0,
     });
 
-    /*
-     * 1. SAFETY
-     */
     currentStage = "safety";
 
     console.log("TURN_STAGE_START", {
@@ -150,9 +147,6 @@ async function processTurn(gameState, userInput) {
       return result;
     }
 
-    /*
-     * 2. INDICATORS
-     */
     currentStage = "indicator_analysis";
 
     console.log("TURN_STAGE_START", {
@@ -184,9 +178,6 @@ async function processTurn(gameState, userInput) {
       indicators: summarizeIndicators(workingState.indicators),
     });
 
-    /*
-     * 3. PROGRESO
-     */
     currentStage = "story_progress";
 
     const previousProgress = workingState.narrativeState.storyProgress;
@@ -207,9 +198,6 @@ async function processTurn(gameState, userInput) {
       nextProgress: workingState.narrativeState.storyProgress,
     });
 
-    /*
-     * 4. FOCO
-     */
     currentStage = "focus_selection";
 
     let focus = null;
@@ -236,9 +224,6 @@ async function processTurn(gameState, userInput) {
       });
     }
 
-    /*
-     * 5. LÍMITE DE DURACIÓN
-     */
     currentStage = "ending_check";
 
     console.log("ENDING_CHECK", {
@@ -247,9 +232,6 @@ async function processTurn(gameState, userInput) {
       storyProgress: workingState.narrativeState.storyProgress,
     });
 
-    /*
-     * 6. GENERACIÓN NARRATIVA
-     */
     currentStage = "narrative_generation";
 
     console.log("TURN_STAGE_START", {
@@ -310,9 +292,6 @@ async function processTurn(gameState, userInput) {
       choicesCount: generated.choices?.length || 0,
     });
 
-    /*
-     * 7. VALIDACIÓN DE FINAL
-     */
     currentStage = "completion_validation";
 
     let storyComplete = generated.storyComplete === true;
@@ -341,9 +320,6 @@ async function processTurn(gameState, userInput) {
       return buildTurnRecovery(gameState);
     }
 
-    /*
-     * 8. ACTUALIZACIÓN NARRATIVA
-     */
     currentStage = "narrative_state_update";
 
     const authoritativeProgress = workingState.narrativeState.storyProgress;
@@ -363,15 +339,11 @@ async function processTurn(gameState, userInput) {
       commitmentsCount: workingState.narrativeState.commitments?.length || 0,
     });
 
-    /*
-     * 9. FINAL
-     */
     currentStage = "completion_response";
 
     if (storyComplete) {
       workingState.currentChoices = [];
 
-      // Generar evaluación estructurada. No requiere llamada al LLM.
       const evaluation = evaluationService.evaluateGame(workingState);
 
       workingState.evaluation = evaluation;
@@ -419,9 +391,6 @@ async function processTurn(gameState, userInput) {
       };
     }
 
-    /*
-     * 10. NUEVAS OPCIONES
-     */
     currentStage = "choices_update";
 
     workingState.currentChoices = generated.choices;
@@ -431,9 +400,6 @@ async function processTurn(gameState, userInput) {
       choicesCount: workingState.currentChoices?.length || 0,
     });
 
-    /*
-     * 11. NARRATIVE SUMMARY
-     */
     if (workingState.turn % SUMMARY_INTERVAL === 0) {
       currentStage = "narrative_summary";
       metrics.summaryAttempted = true;
@@ -486,9 +452,6 @@ async function processTurn(gameState, userInput) {
       }
     }
 
-    /*
-     * 12. TURNO COMPLETADO
-     */
     currentStage = "completion";
 
     logCompletedTurn({
@@ -587,7 +550,6 @@ function isRecoverableLlmError(error) {
   );
 }
 
-// Se mantienen los últimos 8 eventos
 function applyNarrativeStateUpdate(gameState, update) {
   const previousRecentEvents = gameState.narrativeState.recentEvents || [];
 
@@ -597,6 +559,7 @@ function applyNarrativeStateUpdate(gameState, update) {
     ...gameState.narrativeState,
     ...update,
 
+    // Acotar la memoria narrativa limita el tamaño de los prompts posteriores.
     recentEvents: [...previousRecentEvents, ...newRecentEvents].slice(-8),
   };
 }

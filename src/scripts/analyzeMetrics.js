@@ -1,5 +1,11 @@
 const fs = require("node:fs");
 
+/**
+ * Convierte una exportación JSONL de CloudWatch en eventos reconocidos.
+ *
+ * @param {string} input Contenido completo de la exportación.
+ * @returns {Array<Record<string, unknown>>} Eventos métricos válidos.
+ */
 function parseMetrics(input) {
   return input
     .split(/\r?\n/)
@@ -28,6 +34,12 @@ function parseMetricLine(line) {
   return null;
 }
 
+/**
+ * Agrega eventos de varias partidas sin requerir identificadores de sesión.
+ *
+ * @param {Array<Record<string, unknown>>} events Eventos métricos.
+ * @returns {Record<string, unknown>} Tasas y distribuciones de latencia.
+ */
 function buildMetricsReport(events) {
   const turns = events.filter(({ event }) => event === "TURN_COMPLETED");
   const retryTurns = turns.filter(({ retryCount }) => retryCount > 0);
@@ -130,6 +142,12 @@ function buildMetricsReport(events) {
   };
 }
 
+/**
+ * Resume una muestra numérica y admite que esté vacía.
+ *
+ * @param {number[]} samples Muestra de duraciones o recuentos.
+ * @returns {Record<string, number|null>} Estadísticos de la muestra.
+ */
 function calculateStats(samples) {
   const sorted = samples.filter(Number.isFinite).sort((a, b) => a - b);
 

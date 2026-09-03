@@ -64,7 +64,6 @@ const ChoiceIntentHandler = {
     let usesAplSpeech = false;
 
     if (result.gameState.safetyState?.state === "NORMAL") {
-      // Cargar las opciones que acaba de generar el siguiente turno.
       choiceService.addDynamicEntities(
         responseBuilder,
         result.gameState.currentChoices,
