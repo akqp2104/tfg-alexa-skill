@@ -405,27 +405,44 @@ test("story progress calculated by the backend cannot be overwritten by Gemini",
   }
 });
 
-test("Gemini storyComplete closes the game without offering more choices", async () => {
+test("a valid completed story creates the final evaluation and ends the session", async () => {
   const originalSafetyAnalyze = safetyService.analyze;
   const originalIndicatorAnalyze = indicatorAnalysisService.analyze;
   const originalGenerateNextScene = narrativeService.generateNextScene;
   const gameState = createInitialGameState("completed-story");
-  gameState.turn = 13;
+  gameState.turn = progressConfig.maxTurns - 2;
   gameState.narrativeState.storyProgress = "resolution";
   gameState.currentChoices = [{ id: "talk", text: "Hablar", synonyms: [] }];
+  gameState.indicators.worry = {
+    score: 2,
+    evidenceCount: 1,
+    focusCount: 2,
+  };
 
   safetyService.analyze = async () => ({ state: "NORMAL", riskTarget: "NONE" });
-  indicatorAnalysisService.analyze = async () => ({ evidence: [] });
-  narrativeService.generateNextScene = async () => ({
-    narrative: "Os despedís y vuelves a casa con el asunto resuelto.",
-    reprompt: "",
-    storyComplete: true,
-    choices: [],
-    narrativeStateUpdate: {
-      storyProgress: "resolution",
-      recentEvents: ["La historia termina con el conflicto resuelto"],
-    },
+  indicatorAnalysisService.analyze = async () => ({
+    evidence: [
+      {
+        indicator: "worry",
+        scoreDelta: 2,
+        evidence: "La elección aporta una segunda evidencia contextual.",
+      },
+    ],
   });
+  narrativeService.generateNextScene = async (state, input, focus, options) => {
+    assert.equal(options.forceEnding, false);
+
+    return {
+      narrative: "Os despedís y vuelves a casa con el asunto resuelto.",
+      reprompt: "",
+      storyComplete: true,
+      choices: [],
+      narrativeStateUpdate: {
+        storyProgress: "resolution",
+        recentEvents: ["La historia termina con el conflicto resuelto"],
+      },
+    };
+  };
 
   try {
     const result = await gameService.processTurn(gameState, {
@@ -434,9 +451,20 @@ test("Gemini storyComplete closes the game without offering more choices", async
     });
 
     assert.equal(result.shouldEndSession, true);
+    assert.equal(result.gameComplete, true);
+    assert.equal(result.gameState.turn, progressConfig.maxTurns - 1);
     assert.equal(result.reprompt, undefined);
     assert.equal(result.gameState.narrativeState.storyComplete, true);
     assert.deepEqual(result.gameState.currentChoices, []);
+    assert.equal(result.evaluation.indicatorResults.worry.status, "relevant");
+    assert.equal(result.evaluation.indicatorResults.worry.score, 4);
+    assert.equal(result.evaluation.indicatorResults.worry.evidenceCount, 2);
+    assert.ok(result.gameState.evaluation);
+    assert.equal(result.gameState.evaluation, result.evaluation);
+    assert.match(result.response, /Os despedís y vuelves a casa/);
+    assert.match(result.response, /La historia ha terminado/);
+    assert.match(result.response, /anticipación de resultados negativos/);
+    assert.match(result.response, /no constituye un diagnóstico/);
     assert.doesNotMatch(result.response, /Tus opciones son/);
   } finally {
     safetyService.analyze = originalSafetyAnalyze;
@@ -445,12 +473,12 @@ test("Gemini storyComplete closes the game without offering more choices", async
   }
 });
 
-test("the hard limit requests and accepts a final resolution", async () => {
+test("scene maxTurns is final and no later scene is generated", async () => {
   const originalSafetyAnalyze = safetyService.analyze;
   const originalIndicatorAnalyze = indicatorAnalysisService.analyze;
   const originalGenerateNextScene = narrativeService.generateNextScene;
   const gameState = createInitialGameState("forced-ending");
-  gameState.turn = progressConfig.maxTurns;
+  gameState.turn = progressConfig.maxTurns - 1;
   gameState.narrativeState.storyProgress = "development";
   gameState.currentChoices = [{ id: "continue", text: "Continuar", synonyms: [] }];
 
@@ -481,8 +509,10 @@ test("the hard limit requests and accepts a final resolution", async () => {
     });
 
     assert.equal(result.shouldEndSession, true);
+    assert.equal(result.gameState.turn, progressConfig.maxTurns);
     assert.equal(result.gameState.narrativeState.storyProgress, "resolution");
     assert.equal(result.gameState.narrativeState.storyComplete, true);
+    assert.deepEqual(result.gameState.currentChoices, []);
   } finally {
     safetyService.analyze = originalSafetyAnalyze;
     indicatorAnalysisService.analyze = originalIndicatorAnalyze;

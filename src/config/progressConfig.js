@@ -4,5 +4,5 @@ module.exports = {
     climax: 8,
     resolution: 12,
   },
-  maxTurns: 16,
+  maxTurns: 14,
 };

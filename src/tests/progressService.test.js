@@ -34,3 +34,24 @@ test("hard limit permits a backend-approved ending", () => {
   assert.equal(progressService.hasReachedHardLimit(state), true);
   assert.equal(progressService.canFinishStory(state), true);
 });
+
+test("hard limit is not reached one turn before maxTurns", () => {
+  const state = createInitialGameState("before-hard-limit");
+  state.turn = progressConfig.maxTurns - 1;
+
+  assert.equal(progressService.hasReachedHardLimit(state), false);
+});
+
+test("the next scene reaches the limit one turn before maxTurns", () => {
+  const state = createInitialGameState("next-scene-hard-limit");
+  state.turn = progressConfig.maxTurns - 1;
+
+  assert.equal(progressService.nextSceneReachesHardLimit(state), true);
+});
+
+test("the next scene does not reach the limit two turns before maxTurns", () => {
+  const state = createInitialGameState("before-next-scene-hard-limit");
+  state.turn = progressConfig.maxTurns - 2;
+
+  assert.equal(progressService.nextSceneReachesHardLimit(state), false);
+});

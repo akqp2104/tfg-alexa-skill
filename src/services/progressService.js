@@ -49,6 +49,10 @@ function hasReachedHardLimit(gameState) {
   return gameState.turn >= progressConfig.maxTurns;
 }
 
+function nextSceneReachesHardLimit(gameState) {
+  return gameState.turn + 1 >= progressConfig.maxTurns;
+}
+
 function canFinishStory(gameState) {
   return (
     gameState.narrativeState.storyProgress === "resolution" ||
@@ -59,5 +63,6 @@ function canFinishStory(gameState) {
 module.exports = {
   updateProgress,
   hasReachedHardLimit,
+  nextSceneReachesHardLimit,
   canFinishStory,
 };

@@ -170,7 +170,7 @@ async function processTurn(gameState, userInput) {
 
     workingState.narrativeState.storyProgress = nextProgress;
 
-    const forceEnding = progressService.hasReachedHardLimit(workingState);
+    const forceEnding = progressService.nextSceneReachesHardLimit(workingState);
 
     if (forceEnding) {
       workingState.narrativeState.storyProgress = "resolution";
