@@ -1,6 +1,5 @@
-function createInitialGameState(sessionId) {
+function createInitialGameState() {
   return {
-    sessionId,
     turn: 0,
 
     narrativeState: {
@@ -19,6 +18,7 @@ function createInitialGameState(sessionId) {
       commitments: [],
       recentEvents: [],
       storyProgress: "introduction",
+      storyComplete: false,
     },
 
     currentChoices: [],
@@ -48,6 +48,8 @@ function createInitialGameState(sessionId) {
     },
 
     narrativeSummary: "",
+
+    evaluation: null,
   };
 }
 

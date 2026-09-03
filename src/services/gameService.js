@@ -7,8 +7,15 @@ const indicatorService = require("./indicatorService");
 const narrativeSpeechService = require("./narrativeSpeechService");
 const focusService = require("./focusService");
 const llmErrorService = require("./llmErrorService");
-
+const narrativeSummaryService = require("./narrativeSummaryService");
+const progressService = require("./progressService");
+const { SUMMARY_INTERVAL } = require("../config/gameConfig");
 const RESPONSE_DEADLINE_MS = 7500;
+const evaluationService = require("./evaluationService");
+const evaluationResponseService = require("./evaluationResponseService");
+const {
+  sanitizeError,
+} = require("./errorSanitizationService");
 
 async function startGame(gameState) {
   const start = Date.now();
@@ -24,7 +31,7 @@ async function startGame(gameState) {
       { deadlineAt: start + RESPONSE_DEADLINE_MS },
     );
   } catch (error) {
-    if (!llmErrorService.isLlmError(error)) {
+    if (!isRecoverableLlmError(error)) {
       throw error;
     }
 
@@ -69,170 +76,375 @@ async function startGame(gameState) {
 }
 
 async function processTurn(gameState, userInput) {
-  const turnStart = Date.now();
-  const safetyStart = Date.now();
-  // 1. Analizar la entrada del usuario para detectar posibles riesgos de seguridad.
-  const safetyResult = await safetyService.analyze({
-    userInput,
-    narrativeState: gameState.narrativeState,
-    currentChoices: gameState.currentChoices,
-  });
-  const safetyAnalysisMs = Date.now() - safetyStart;
-
-  console.log("SAFETY RESULT:", {
-    state: safetyResult.state,
-    riskTarget: safetyResult.riskTarget,
-  });
-
-  if (safetyResult.state === "UNCERTAIN") {
-    logTurnLatency({
-      turn: gameState.turn,
-      safetyAnalysisMs,
-      indicatorAnalysisMs: null,
-      narrativeGenerationMs: null,
-      totalMs: Date.now() - turnStart,
-    });
-    return safetyFlowService.handleUncertain(gameState);
-  }
-
-  if (safetyResult.state === "SAFETY_TRIGGERED") {
-    logTurnLatency({
-      turn: gameState.turn,
-      safetyAnalysisMs,
-      indicatorAnalysisMs: null,
-      narrativeGenerationMs: null,
-      totalMs: Date.now() - turnStart,
-    });
-    return safetyFlowService.handleSafetyTriggered(
-      gameState,
-      safetyResult.riskTarget,
-    );
-  }
-
-  // El turno normal se construye sobre una copia. Si cualquier llamada al LLM
-  // falla, el estado guardado en la sesión no queda parcialmente actualizado.
-  const nextGameState = cloneGameState(gameState);
-
-  nextGameState.safetyState = {
-    state: "NORMAL",
-    phase: null,
-    awaitingImmediateSafetyAnswer: false,
-  };
-
-  // 2. Analizar la entrada del usuario para actualizar los indicadores.
-  const indicatorStart = Date.now();
-  const indicatorAnalysis = await indicatorAnalysisService.analyze({
-    userInput,
-    narrativeState: nextGameState.narrativeState,
-    currentChoices: nextGameState.currentChoices,
-  });
-  const indicatorAnalysisMs = Date.now() - indicatorStart;
-
-  console.log(
-    "INDICATOR ANALYSIS:",
-    JSON.stringify(indicatorAnalysis, null, 2),
-  );
-
-  // 3. Actualizar los indicadores en el estado del juego.
-  indicatorService.applyEvidence(nextGameState.indicators, indicatorAnalysis);
-
-  console.log(
-    "UPDATED INDICATORS:",
-    JSON.stringify(nextGameState.indicators, null, 2),
-  );
-
-  const focus = focusService.selectFocus(
-    nextGameState.indicators,
-    nextGameState.lastFocus,
-  );
-
-  console.log("SELECTED FOCUS:", focus);
-
-  // 4. Generar la siguiente escena narrativa basada en la entrada del usuario y el estado actualizado del juego.
-  console.log("PROCESS TURN:", {
-    turn: nextGameState.turn,
-  });
-
-  const narrativeStart = Date.now();
-  let generated;
+  const startedAt = Date.now();
+  let currentStage = "initialization";
+  let workingState;
 
   try {
-    generated = await narrativeService.generateNextScene(
-      nextGameState,
+    workingState = structuredClone(gameState);
+
+    console.log("TURN_START", {
+      turn: workingState.turn,
+      storyProgress: workingState.narrativeState?.storyProgress,
+      currentChoicesCount: workingState.currentChoices?.length || 0,
+    });
+
+    /*
+     * 1. SAFETY
+     */
+    currentStage = "safety";
+
+    console.log("TURN_STAGE_START", {
+      turn: workingState.turn,
+      stage: "safety",
+    });
+
+    const safetyStartedAt = Date.now();
+
+    const safetyAnalysis = await safetyService.analyze({
       userInput,
-      focus,
-      { deadlineAt: turnStart + RESPONSE_DEADLINE_MS },
-    );
-  } catch (error) {
-    if (!llmErrorService.isLlmError(error)) {
-      throw error;
+      narrativeState: workingState.narrativeState,
+      currentChoices: workingState.currentChoices,
+    });
+
+    console.log("TURN_STAGE_SUCCESS", {
+      turn: workingState.turn,
+      stage: "safety",
+      durationMs: Date.now() - safetyStartedAt,
+      safetyState: safetyAnalysis.state,
+    });
+
+    if (safetyAnalysis.state !== "NORMAL") {
+      console.log("TURN_SAFETY_REDIRECT", {
+        turn: workingState.turn,
+        safetyState: safetyAnalysis.state,
+      });
+
+      return await safetyFlowService.handleSafetyResult(
+        workingState,
+        safetyAnalysis,
+        userInput,
+      );
     }
 
-    const narrativeGenerationMs = Date.now() - narrativeStart;
+    /*
+     * 2. INDICATORS
+     */
+    currentStage = "indicator_analysis";
 
-    console.error("NARRATIVE FALLBACK USED:", {
-      phase: "turn",
-      turn: gameState.turn,
-      code: error.code,
+    console.log("TURN_STAGE_START", {
+      turn: workingState.turn,
+      stage: "indicator_analysis",
     });
 
-    logTurnLatency({
-      turn: gameState.turn,
-      safetyAnalysisMs,
-      indicatorAnalysisMs,
-      narrativeGenerationMs,
-      totalMs: Date.now() - turnStart,
+    const indicatorStartedAt = Date.now();
+
+    const indicatorAnalysis = await indicatorAnalysisService.analyze({
+      userInput,
+      narrativeState: workingState.narrativeState,
+      currentChoices: workingState.currentChoices,
     });
 
-    return buildTurnRecovery(gameState);
-  }
-  const narrativeGenerationMs = Date.now() - narrativeStart;
+    console.log("TURN_STAGE_SUCCESS", {
+      turn: workingState.turn,
+      stage: "indicator_analysis",
+      durationMs: Date.now() - indicatorStartedAt,
+      evidenceCount: indicatorAnalysis.evidence?.length || 0,
+    });
 
-  focusService.registerFocusSelection(nextGameState.indicators, focus);
-  nextGameState.lastFocus = focus;
+    indicatorService.applyEvidence(workingState.indicators, indicatorAnalysis);
 
-  applyNarrativeStateUpdate(nextGameState, generated.narrativeStateUpdate);
+    console.log("INDICATORS_UPDATED", {
+      turn: workingState.turn,
+      indicators: summarizeIndicators(workingState.indicators),
+    });
 
-  nextGameState.currentChoices = generated.choices;
+    /*
+     * 3. PROGRESO
+     */
+    currentStage = "story_progress";
 
-  nextGameState.turn += 1;
+    const previousProgress = workingState.narrativeState.storyProgress;
 
-  logTurnLatency({
-    turn: nextGameState.turn,
-    safetyAnalysisMs,
-    indicatorAnalysisMs,
-    narrativeGenerationMs,
-    totalMs: Date.now() - turnStart,
-  });
+    const nextProgress = progressService.updateProgress(workingState);
 
-  console.log(
-    "TURN COMPLETED:",
-    JSON.stringify(
-      {
+    workingState.narrativeState.storyProgress = nextProgress;
+
+    const forceEnding = progressService.hasReachedHardLimit(workingState);
+
+    if (forceEnding) {
+      workingState.narrativeState.storyProgress = "resolution";
+    }
+
+    console.log("STORY_PROGRESS_UPDATED", {
+      turn: workingState.turn,
+      previousProgress,
+      nextProgress: workingState.narrativeState.storyProgress,
+    });
+
+    /*
+     * 4. FOCO
+     */
+    currentStage = "focus_selection";
+
+    let focus = null;
+
+    if (workingState.narrativeState.storyProgress !== "resolution") {
+      focus = focusService.selectFocus(
+        workingState.indicators,
+        workingState.lastFocus,
+      );
+
+      focusService.registerFocusSelection(workingState.indicators, focus);
+      workingState.lastFocus = focus;
+
+      console.log("FOCUS_SELECTED", {
+        turn: workingState.turn,
         focus,
-        gameState: nextGameState,
-      },
-      null,
-      2,
-    ),
-  );
+        score: workingState.indicators[focus]?.score ?? 0,
+        evidenceCount: workingState.indicators[focus]?.evidenceCount ?? 0,
+      });
+    } else {
+      console.log("FOCUS_SKIPPED", {
+        turn: workingState.turn,
+        reason: "story_in_resolution",
+      });
+    }
 
-  return {
-    gameState: nextGameState,
-    response: narrativeSpeechService.buildResponse(
-      generated.narrative,
-      generated.choices,
-    ),
-    reprompt: narrativeSpeechService.buildReprompt(
-      generated.choices,
-      generated.reprompt,
-    ),
-    shouldEndSession: false,
-  };
-}
+    /*
+     * 5. LÍMITE DE DURACIÓN
+     */
+    currentStage = "ending_check";
 
-function cloneGameState(gameState) {
-  return JSON.parse(JSON.stringify(gameState));
+    console.log("ENDING_CHECK", {
+      turn: workingState.turn,
+      forceEnding,
+      storyProgress: workingState.narrativeState.storyProgress,
+    });
+
+    /*
+     * 6. GENERACIÓN NARRATIVA
+     */
+    currentStage = "narrative_generation";
+
+    console.log("TURN_STAGE_START", {
+      turn: workingState.turn,
+      stage: "narrative_generation",
+      focus,
+      forceEnding,
+    });
+
+    const narrativeStartedAt = Date.now();
+
+    let generated;
+
+    try {
+      generated = await narrativeService.generateNextScene(
+        workingState,
+        userInput,
+        focus,
+        {
+          forceEnding,
+          deadlineAt: startedAt + RESPONSE_DEADLINE_MS,
+        },
+      );
+    } catch (error) {
+      if (!isRecoverableLlmError(error)) {
+        throw error;
+      }
+
+      console.error("NARRATIVE_FALLBACK_USED", {
+        turn: gameState.turn,
+        code: error.code,
+      });
+
+      return buildTurnRecovery(gameState);
+    }
+
+    console.log("TURN_STAGE_SUCCESS", {
+      turn: workingState.turn,
+      stage: "narrative_generation",
+      durationMs: Date.now() - narrativeStartedAt,
+      storyComplete: generated.storyComplete,
+      choicesCount: generated.choices?.length || 0,
+    });
+
+    /*
+     * 7. VALIDACIÓN DE FINAL
+     */
+    currentStage = "completion_validation";
+
+    let storyComplete = generated.storyComplete === true;
+
+    if (storyComplete && !progressService.canFinishStory(workingState)) {
+      console.warn("STORY_COMPLETE_REJECTED", {
+        turn: workingState.turn,
+        storyProgress: workingState.narrativeState.storyProgress,
+        reason: "finish_not_allowed_by_backend",
+      });
+
+      return buildTurnRecovery(gameState);
+    }
+
+    /*
+     * 8. ACTUALIZACIÓN NARRATIVA
+     */
+    currentStage = "narrative_state_update";
+
+    const authoritativeProgress = workingState.narrativeState.storyProgress;
+
+    applyNarrativeStateUpdate(workingState, generated.narrativeStateUpdate);
+    workingState.narrativeState.storyProgress = authoritativeProgress;
+    workingState.narrativeState.storyComplete = storyComplete;
+
+    workingState.turn += 1;
+
+    console.log("NARRATIVE_STATE_UPDATED", {
+      turn: workingState.turn,
+      storyProgress: workingState.narrativeState.storyProgress,
+      recentEventsCount: workingState.narrativeState.recentEvents?.length || 0,
+      openConflictsCount:
+        workingState.narrativeState.openConflicts?.length || 0,
+      commitmentsCount: workingState.narrativeState.commitments?.length || 0,
+    });
+
+    /*
+     * 9. FINAL
+     */
+    currentStage = "completion_response";
+
+    if (storyComplete) {
+      workingState.currentChoices = [];
+
+      // Generar evaluación estructurada. No requiere llamada al LLM.
+      const evaluation = evaluationService.evaluateGame(workingState);
+
+      workingState.evaluation = evaluation;
+
+      const evaluationResponse =
+        evaluationResponseService.buildFinalResponse(evaluation);
+
+      console.log("FINAL_EVALUATION_CREATED", {
+        turn: workingState.turn,
+
+        relevantIndicators: evaluation.relevantIndicators.map((item) => ({
+          indicator: item.indicator,
+
+          level: item.level,
+
+          evidenceCount: item.evidenceCount,
+
+          explorationCount: item.explorationCount,
+        })),
+
+        exploredIndicators: evaluation.exploredIndicators,
+
+        totalIndicators: evaluation.totalIndicators,
+      });
+
+      return {
+        gameState: workingState,
+
+        response: `${generated.narrative} ${evaluationResponse}`,
+
+        reprompt: undefined,
+
+        shouldEndSession: true,
+
+        gameComplete: true,
+
+        evaluation,
+      };
+    }
+
+    /*
+     * 10. NUEVAS OPCIONES
+     */
+    currentStage = "choices_update";
+
+    workingState.currentChoices = generated.choices;
+
+    console.log("CHOICES_UPDATED", {
+      turn: workingState.turn,
+      choicesCount: workingState.currentChoices?.length || 0,
+    });
+
+    /*
+     * 11. NARRATIVE SUMMARY
+     */
+    if (workingState.turn % SUMMARY_INTERVAL === 0) {
+      currentStage = "narrative_summary";
+
+      console.log("TURN_STAGE_START", {
+        turn: workingState.turn,
+        stage: "narrative_summary",
+      });
+
+      const summaryStartedAt = Date.now();
+
+      try {
+        const newSummary =
+          await narrativeSummaryService.updateSummary(workingState);
+
+        workingState.narrativeSummary = newSummary;
+
+        workingState.narrativeState.recentEvents = (
+          workingState.narrativeState.recentEvents || []
+        ).slice(-2);
+
+        console.log("TURN_STAGE_SUCCESS", {
+          turn: workingState.turn,
+          stage: "narrative_summary",
+          durationMs: Date.now() - summaryStartedAt,
+          summaryLength: newSummary?.length || 0,
+        });
+      } catch (error) {
+        if (!isRecoverableLlmError(error)) {
+          throw error;
+        }
+
+        console.error("NARRATIVE_SUMMARY_SKIPPED", {
+          turn: workingState.turn,
+          code: error.code,
+        });
+      }
+    }
+
+    /*
+     * 12. TURNO COMPLETADO
+     */
+    currentStage = "completion";
+
+    console.log("TURN_SUCCESS", {
+      turn: workingState.turn,
+      durationMs: Date.now() - startedAt,
+      storyProgress: workingState.narrativeState.storyProgress,
+      focus,
+    });
+
+    return {
+      gameState: workingState,
+      response: narrativeSpeechService.buildResponse(
+        generated.narrative,
+        generated.choices,
+      ),
+      reprompt: narrativeSpeechService.buildReprompt(
+        generated.choices,
+        generated.reprompt,
+      ),
+      shouldEndSession: false,
+      gameComplete: false,
+    };
+  } catch (error) {
+    console.error("TURN_FAILED", {
+      turn: gameState.turn,
+      stage: currentStage,
+      durationMs: Date.now() - startedAt,
+      error: sanitizeError(error),
+    });
+
+    throw error;
+  }
 }
 
 function logTurnLatency(metrics) {
@@ -242,10 +454,36 @@ function logTurnLatency(metrics) {
   });
 }
 
+function summarizeIndicators(indicators = {}) {
+  return Object.fromEntries(
+    Object.entries(indicators).map(([name, value]) => [
+      name,
+      {
+        score: value.score,
+        evidenceCount: value.evidenceCount,
+        focusCount: value.focusCount ?? value.explorationCount ?? 0,
+      },
+    ]),
+  );
+}
+
+function isRecoverableLlmError(error) {
+  return (
+    llmErrorService.isLlmError(error) || llmErrorService.isRetryable(error)
+  );
+}
+
+// Se mantienen los últimos 8 eventos
 function applyNarrativeStateUpdate(gameState, update) {
+  const previousRecentEvents = gameState.narrativeState.recentEvents || [];
+
+  const newRecentEvents = update.recentEvents || [];
+
   gameState.narrativeState = {
     ...gameState.narrativeState,
     ...update,
+
+    recentEvents: [...previousRecentEvents, ...newRecentEvents].slice(-8),
   };
 }
 
@@ -254,6 +492,7 @@ function buildInitialNarrativeFallback() {
     narrative:
       "Estás en una cafetería tranquila cuando una persona sentada cerca de ti deja caer varias hojas al suelo. Al recogerlas, parece algo apurada y mira hacia ti.",
     reprompt: "¿Prefieres ayudarle o continuar con lo que estabas haciendo?",
+    storyComplete: false,
     choices: [
       {
         id: "help_person",

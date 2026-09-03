@@ -49,8 +49,6 @@ const ChoiceIntentHandler = {
 
     const result = await gameService.processTurn(gameState, userInput);
 
-    sessionService.saveGameState(handlerInput, result.gameState);
-
     const responseBuilder = handlerInput.responseBuilder;
 
     if (result.shouldEndSession) {
@@ -60,6 +58,8 @@ const ChoiceIntentHandler = {
         .withShouldEndSession(true)
         .getResponse();
     }
+
+    sessionService.saveGameState(handlerInput, result.gameState);
 
     let usesAplSpeech = false;
 
