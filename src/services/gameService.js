@@ -16,9 +16,11 @@ const evaluationResponseService = require("./evaluationResponseService");
 const {
   sanitizeError,
 } = require("./errorSanitizationService");
+const logMetric = require("../observability/logMetric");
 
 async function startGame(gameState) {
   const start = Date.now();
+  const metrics = createTurnMetrics();
   console.log("START GAME");
 
   const storySeed = storySeedService.generateStorySeed();
@@ -28,16 +30,22 @@ async function startGame(gameState) {
     generated = await narrativeService.generateInitialScene(
       gameState,
       storySeed,
-      { deadlineAt: start + RESPONSE_DEADLINE_MS },
+      {
+        deadlineAt: start + RESPONSE_DEADLINE_MS,
+        onRetry: (retry) => registerRetry(metrics, retry),
+      },
     );
   } catch (error) {
     if (!isRecoverableLlmError(error)) {
       throw error;
     }
 
-    console.error("NARRATIVE FALLBACK USED:", {
+    metrics.fallbackUsed = true;
+    logMetric("NARRATIVE_FALLBACK", {
+      turn: 1,
       phase: "initial",
-      code: error.code,
+      reason: error.code,
+      durationMs: Date.now() - start,
     });
     generated = buildInitialNarrativeFallback();
   }
@@ -48,12 +56,15 @@ async function startGame(gameState) {
 
   gameState.turn = 1;
 
-  logTurnLatency({
+  metrics.narrativeDurationMs = Date.now() - start;
+
+  logMetric("GAME_START_COMPLETED", {
     turn: gameState.turn,
-    safetyAnalysisMs: null,
-    indicatorAnalysisMs: null,
-    narrativeGenerationMs: Date.now() - start,
-    totalMs: Date.now() - start,
+    totalDurationMs: Date.now() - start,
+    narrativeDurationMs: metrics.narrativeDurationMs,
+    retryCount: metrics.retryCount,
+    retryDurationMs: metrics.retryDurationMs,
+    fallbackUsed: metrics.fallbackUsed,
   });
 
   console.log("INITIAL GAME STATE:", {
@@ -77,6 +88,7 @@ async function startGame(gameState) {
 
 async function processTurn(gameState, userInput) {
   const startedAt = Date.now();
+  const metrics = createTurnMetrics();
   let currentStage = "initialization";
   let workingState;
 
@@ -107,10 +119,12 @@ async function processTurn(gameState, userInput) {
       currentChoices: workingState.currentChoices,
     });
 
+    metrics.safetyDurationMs = Date.now() - safetyStartedAt;
+
     console.log("TURN_STAGE_SUCCESS", {
       turn: workingState.turn,
       stage: "safety",
-      durationMs: Date.now() - safetyStartedAt,
+      durationMs: metrics.safetyDurationMs,
       safetyState: safetyAnalysis.state,
     });
 
@@ -120,11 +134,20 @@ async function processTurn(gameState, userInput) {
         safetyState: safetyAnalysis.state,
       });
 
-      return await safetyFlowService.handleSafetyResult(
+      const result = await safetyFlowService.handleSafetyResult(
         workingState,
         safetyAnalysis,
         userInput,
       );
+
+      logCompletedTurn({
+        turn: workingState.turn,
+        startedAt,
+        outcome: "safety_redirect",
+        metrics,
+      });
+
+      return result;
     }
 
     /*
@@ -145,10 +168,12 @@ async function processTurn(gameState, userInput) {
       currentChoices: workingState.currentChoices,
     });
 
+    metrics.indicatorDurationMs = Date.now() - indicatorStartedAt;
+
     console.log("TURN_STAGE_SUCCESS", {
       turn: workingState.turn,
       stage: "indicator_analysis",
-      durationMs: Date.now() - indicatorStartedAt,
+      durationMs: metrics.indicatorDurationMs,
       evidenceCount: indicatorAnalysis.evidence?.length || 0,
     });
 
@@ -246,25 +271,41 @@ async function processTurn(gameState, userInput) {
         {
           forceEnding,
           deadlineAt: startedAt + RESPONSE_DEADLINE_MS,
+          onRetry: (retry) => registerRetry(metrics, retry),
         },
       );
     } catch (error) {
+      metrics.narrativeDurationMs = Date.now() - narrativeStartedAt;
+
       if (!isRecoverableLlmError(error)) {
         throw error;
       }
 
-      console.error("NARRATIVE_FALLBACK_USED", {
+      metrics.fallbackUsed = true;
+
+      logMetric("NARRATIVE_FALLBACK", {
         turn: gameState.turn,
-        code: error.code,
+        phase: "turn",
+        reason: error.code,
+        durationMs: metrics.narrativeDurationMs,
+      });
+
+      logCompletedTurn({
+        turn: gameState.turn,
+        startedAt,
+        outcome: "fallback",
+        metrics,
       });
 
       return buildTurnRecovery(gameState);
     }
 
+    metrics.narrativeDurationMs = Date.now() - narrativeStartedAt;
+
     console.log("TURN_STAGE_SUCCESS", {
       turn: workingState.turn,
       stage: "narrative_generation",
-      durationMs: Date.now() - narrativeStartedAt,
+      durationMs: metrics.narrativeDurationMs,
       storyComplete: generated.storyComplete,
       choicesCount: generated.choices?.length || 0,
     });
@@ -281,6 +322,20 @@ async function processTurn(gameState, userInput) {
         turn: workingState.turn,
         storyProgress: workingState.narrativeState.storyProgress,
         reason: "finish_not_allowed_by_backend",
+      });
+
+      metrics.fallbackUsed = true;
+      logMetric("NARRATIVE_FALLBACK", {
+        turn: gameState.turn,
+        phase: "turn",
+        reason: "STORY_COMPLETE_REJECTED",
+        durationMs: metrics.narrativeDurationMs,
+      });
+      logCompletedTurn({
+        turn: gameState.turn,
+        startedAt,
+        outcome: "fallback",
+        metrics,
       });
 
       return buildTurnRecovery(gameState);
@@ -342,6 +397,13 @@ async function processTurn(gameState, userInput) {
         totalIndicators: evaluation.totalIndicators,
       });
 
+      logCompletedTurn({
+        turn: workingState.turn,
+        startedAt,
+        outcome: "game_completed",
+        metrics,
+      });
+
       return {
         gameState: workingState,
 
@@ -374,6 +436,7 @@ async function processTurn(gameState, userInput) {
      */
     if (workingState.turn % SUMMARY_INTERVAL === 0) {
       currentStage = "narrative_summary";
+      metrics.summaryAttempted = true;
 
       console.log("TURN_STAGE_START", {
         turn: workingState.turn,
@@ -392,20 +455,33 @@ async function processTurn(gameState, userInput) {
           workingState.narrativeState.recentEvents || []
         ).slice(-2);
 
+        metrics.summaryDurationMs = Date.now() - summaryStartedAt;
+
         console.log("TURN_STAGE_SUCCESS", {
           turn: workingState.turn,
           stage: "narrative_summary",
-          durationMs: Date.now() - summaryStartedAt,
+          durationMs: metrics.summaryDurationMs,
+          summaryLength: newSummary?.length || 0,
+        });
+
+        logMetric("NARRATIVE_SUMMARY", {
+          turn: workingState.turn,
+          outcome: "success",
+          durationMs: metrics.summaryDurationMs,
           summaryLength: newSummary?.length || 0,
         });
       } catch (error) {
+        metrics.summaryDurationMs = Date.now() - summaryStartedAt;
+
         if (!isRecoverableLlmError(error)) {
           throw error;
         }
 
-        console.error("NARRATIVE_SUMMARY_SKIPPED", {
+        logMetric("NARRATIVE_SUMMARY", {
           turn: workingState.turn,
-          code: error.code,
+          outcome: "skipped",
+          reason: error.code,
+          durationMs: metrics.summaryDurationMs,
         });
       }
     }
@@ -415,11 +491,12 @@ async function processTurn(gameState, userInput) {
      */
     currentStage = "completion";
 
-    console.log("TURN_SUCCESS", {
+    logCompletedTurn({
       turn: workingState.turn,
-      durationMs: Date.now() - startedAt,
+      startedAt,
+      outcome: "continued",
+      metrics,
       storyProgress: workingState.narrativeState.storyProgress,
-      focus,
     });
 
     return {
@@ -447,10 +524,47 @@ async function processTurn(gameState, userInput) {
   }
 }
 
-function logTurnLatency(metrics) {
-  console.log("TURN LATENCY:", {
-    ...metrics,
-    exceedsEightSeconds: metrics.totalMs > 8000,
+function createTurnMetrics() {
+  return {
+    safetyDurationMs: null,
+    indicatorDurationMs: null,
+    narrativeDurationMs: null,
+    summaryAttempted: false,
+    summaryDurationMs: 0,
+    retryCount: 0,
+    retryDurationMs: 0,
+    fallbackUsed: false,
+  };
+}
+
+function registerRetry(metrics, retry) {
+  metrics.retryCount += 1;
+  metrics.retryDurationMs += retry.retryDurationMs;
+}
+
+function logCompletedTurn({
+  turn,
+  startedAt,
+  outcome,
+  metrics,
+  storyProgress = null,
+}) {
+  const totalDurationMs = Date.now() - startedAt;
+
+  logMetric("TURN_COMPLETED", {
+    turn,
+    outcome,
+    totalDurationMs,
+    safetyDurationMs: metrics.safetyDurationMs,
+    indicatorDurationMs: metrics.indicatorDurationMs,
+    narrativeDurationMs: metrics.narrativeDurationMs,
+    summaryAttempted: metrics.summaryAttempted,
+    summaryDurationMs: metrics.summaryDurationMs,
+    retryCount: metrics.retryCount,
+    retryDurationMs: metrics.retryDurationMs,
+    fallbackUsed: metrics.fallbackUsed,
+    storyProgress,
+    exceedsEightSeconds: totalDurationMs > 8000,
   });
 }
 

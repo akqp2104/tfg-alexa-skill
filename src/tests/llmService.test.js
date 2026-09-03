@@ -92,16 +92,18 @@ test("usage metadata is included in the success log", async () => {
   await service.generate(buildRequest());
 
   assert.equal(log.mock.callCount(), 1);
-  assert.equal(log.mock.calls[0].arguments[0], "LLM_CALL_SUCCESS");
-  assert.deepEqual(log.mock.calls[0].arguments[1], {
+  const metric = JSON.parse(log.mock.calls[0].arguments[0]);
+  assert.deepEqual(metric, {
+    event: "LLM_CALL_SUCCESS",
+    timestamp: metric.timestamp,
     task: "test_task",
     model: "test-model",
-    latencyMs: log.mock.calls[0].arguments[1].latencyMs,
+    latencyMs: metric.latencyMs,
     promptTokenCount: 10,
     candidatesTokenCount: 5,
     totalTokenCount: 15,
   });
-  assert.equal(typeof log.mock.calls[0].arguments[1].latencyMs, "number");
+  assert.equal(typeof metric.latencyMs, "number");
 });
 
 function buildService(response) {

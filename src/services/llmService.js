@@ -1,4 +1,5 @@
 const { GoogleGenAI } = require("@google/genai");
+const logMetric = require("../observability/logMetric");
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -81,6 +82,7 @@ async function generateWithGemini({
   model,
 }) {
   const start = Date.now();
+  let usage;
 
   try {
     const response = await client.models.generateContent({
@@ -95,18 +97,7 @@ async function generateWithGemini({
       },
     });
 
-    const latencyMs = Date.now() - start;
-
-    const usage = response.usageMetadata;
-
-    console.log("LLM_CALL_SUCCESS", {
-      task,
-      model,
-      latencyMs,
-      promptTokenCount: usage?.promptTokenCount ?? null,
-      candidatesTokenCount: usage?.candidatesTokenCount ?? null,
-      totalTokenCount: usage?.totalTokenCount ?? null,
-    });
+    usage = response.usageMetadata;
 
     let parsed;
 
@@ -126,12 +117,6 @@ async function generateWithGemini({
     if (!validation.success) {
       const validationIssues = validation.error.issues.map(formatZodIssue);
 
-      console.error("LLM schema validation failed:", {
-        task,
-        issueCount: validationIssues.length,
-        issues: validationIssues,
-      });
-
       const schemaError = new Error("LLM_SCHEMA_INVALID");
 
       schemaError.code = "LLM_SCHEMA_INVALID";
@@ -144,10 +129,6 @@ async function generateWithGemini({
       const semanticValidation = semanticValidator(validation.data);
 
       if (!semanticValidation.valid) {
-        console.error("LLM semantic validation failed:", {
-          task,
-        });
-
         const semanticError = new Error("LLM_SEMANTIC_INVALID");
 
         semanticError.code = "LLM_SEMANTIC_INVALID";
@@ -158,48 +139,68 @@ async function generateWithGemini({
       }
     }
 
-    return validation.data;
-  } catch (error) {
-    console.error("LLM ERROR:", {
+    logMetric("LLM_CALL_SUCCESS", {
       task,
-      code: error?.code || null,
-      status: error?.status || null,
-      name: error?.name || "Error",
+      model,
+      latencyMs: Date.now() - start,
+      promptTokenCount: usage?.promptTokenCount ?? null,
+      candidatesTokenCount: usage?.candidatesTokenCount ?? null,
+      totalTokenCount: usage?.totalTokenCount ?? null,
     });
 
-    if (error.status === 429) {
-      const quotaError = new Error("LLM_QUOTA_EXCEEDED");
+    return validation.data;
+  } catch (error) {
+    const normalizedError = normalizeLlmError(error);
 
-      quotaError.code = "LLM_QUOTA_EXCEEDED";
+    logMetric("LLM_CALL_FAILED", {
+      task,
+      model,
+      latencyMs: Date.now() - start,
+      errorCode: normalizedError.code,
+      status: normalizedError.status ?? null,
+      issueCount: normalizedError.validationIssues?.length || 0,
+      promptTokenCount: usage?.promptTokenCount ?? null,
+      candidatesTokenCount: usage?.candidatesTokenCount ?? null,
+      totalTokenCount: usage?.totalTokenCount ?? null,
+    });
 
-      throw quotaError;
-    }
-
-    if (error.status === 404) {
-      const modelError = new Error("LLM_MODEL_UNAVAILABLE");
-
-      modelError.code = "LLM_MODEL_UNAVAILABLE";
-
-      throw modelError;
-    }
-
-    if (typeof error?.code === "string" && error.code.startsWith("LLM_")) {
-      throw error;
-    }
-
-    if ([500, 502, 503, 504].includes(error?.status)) {
-      const serviceError = new Error("LLM_SERVICE_UNAVAILABLE");
-      serviceError.code = "LLM_SERVICE_UNAVAILABLE";
-      serviceError.status = error.status;
-      throw serviceError;
-    }
-
-    const providerError = new Error("LLM_PROVIDER_ERROR");
-    providerError.code = "LLM_PROVIDER_ERROR";
-    providerError.status = error?.status;
-
-    throw providerError;
+    throw normalizedError;
   }
+}
+
+function normalizeLlmError(error) {
+  if (error.status === 429) {
+    const quotaError = new Error("LLM_QUOTA_EXCEEDED");
+
+    quotaError.code = "LLM_QUOTA_EXCEEDED";
+
+    return quotaError;
+  }
+
+  if (error.status === 404) {
+    const modelError = new Error("LLM_MODEL_UNAVAILABLE");
+
+    modelError.code = "LLM_MODEL_UNAVAILABLE";
+
+    return modelError;
+  }
+
+  if (typeof error?.code === "string" && error.code.startsWith("LLM_")) {
+    return error;
+  }
+
+  if ([500, 502, 503, 504].includes(error?.status)) {
+    const serviceError = new Error("LLM_SERVICE_UNAVAILABLE");
+    serviceError.code = "LLM_SERVICE_UNAVAILABLE";
+    serviceError.status = error.status;
+    return serviceError;
+  }
+
+  const providerError = new Error("LLM_PROVIDER_ERROR");
+  providerError.code = "LLM_PROVIDER_ERROR";
+  providerError.status = error?.status;
+
+  return providerError;
 }
 
 function formatZodIssue(issue) {

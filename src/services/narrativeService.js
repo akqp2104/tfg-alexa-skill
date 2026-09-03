@@ -2,6 +2,7 @@ const llmService = require("./llmService");
 const llmErrorService = require("./llmErrorService");
 const narrativeResponseSchema = require("../schemas/narrativeResponseSchema");
 const geminiNarrativeSchema = require("../schemas/geminiNarrativeSchema");
+const logMetric = require("../observability/logMetric");
 
 const {
   validateNarrativeSemantics,
@@ -33,6 +34,7 @@ async function generateNarrative(
     deadlineAt = Infinity,
     forceEnding = false,
     requireIncomplete = false,
+    onRetry = null,
   } = {},
 ) {
   const semanticValidator = (candidate) => {
@@ -64,10 +66,15 @@ async function generateNarrative(
       task: "narrative_generation",
     });
 
-  return generateWithRetry(generate, prompt, deadlineAt);
+  return generateWithRetry(generate, prompt, deadlineAt, onRetry);
 }
 
-async function generateWithRetry(generationFunction, prompt, deadlineAt) {
+async function generateWithRetry(
+  generationFunction,
+  prompt,
+  deadlineAt,
+  onRetry,
+) {
   const attemptStart = Date.now();
 
   try {
@@ -81,21 +88,54 @@ async function generateWithRetry(generationFunction, prompt, deadlineAt) {
     const retryDelayMs = 200;
 
     if (Date.now() + firstAttemptMs + retryDelayMs >= deadlineAt) {
-      console.warn("LLM retry skipped:", {
+      logMetric("LLM_RETRY_SKIPPED", {
+        task: "narrative_generation",
+        attempt: 2,
         reason: error.code || error.status,
+        elapsedMs: firstAttemptMs,
         remainingMs: Math.max(0, deadlineAt - Date.now()),
       });
       throw error;
     }
 
-    console.warn("LLM retry:", {
+    logMetric("LLM_RETRY", {
+      task: "narrative_generation",
       attempt: 2,
       reason: error.code || error.status,
+      elapsedMs: firstAttemptMs,
     });
 
-    await llmErrorService.sleep(retryDelayMs);
+    const retryStartedAt = Date.now();
+    let succeeded = false;
 
-    return generationFunction(buildCorrectionPrompt(prompt, error));
+    try {
+      await llmErrorService.sleep(retryDelayMs);
+
+      const result = await generationFunction(
+        buildCorrectionPrompt(prompt, error),
+      );
+      succeeded = true;
+      return result;
+    } finally {
+      const retryDurationMs = Date.now() - retryStartedAt;
+      const elapsedMs = Date.now() - attemptStart;
+
+      logMetric("LLM_RETRY_COMPLETED", {
+        task: "narrative_generation",
+        attempt: 2,
+        reason: error.code || error.status,
+        succeeded,
+        retryDurationMs,
+        elapsedMs,
+      });
+
+      onRetry?.({
+        attempt: 2,
+        succeeded,
+        retryDurationMs,
+        elapsedMs,
+      });
+    }
   }
 }
 

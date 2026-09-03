@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { mock } = require("node:test");
 
 const llmService = require("../services/llmService");
 const narrativeService = require("../services/narrativeService");
@@ -102,6 +103,7 @@ test("keeps conflicting Alexa commands inside complete choice phrases", () => {
 
 test("the narrative retry tells Gemini what must be corrected", async () => {
   const originalGenerate = llmService.generate;
+  const log = mock.method(console, "log", () => {});
   const prompts = [];
   const validResult = {
     narrative: "Escena",
@@ -151,8 +153,20 @@ test("the narrative retry tells Gemini what must be corrected", async () => {
     assert.equal(prompts.length, 2);
     assert.match(prompts[1], /CORRECCIÓN OBLIGATORIA/);
     assert.match(prompts[1], /choices/);
+
+    const metrics = log.mock.calls.map(({ arguments: [entry] }) =>
+      JSON.parse(entry),
+    );
+    assert.deepEqual(
+      metrics.map(({ event }) => event),
+      ["LLM_RETRY", "LLM_RETRY_COMPLETED"],
+    );
+    assert.equal(metrics[0].reason, "LLM_SCHEMA_INVALID");
+    assert.equal(metrics[1].succeeded, true);
+    assert.ok(metrics[1].retryDurationMs >= 200);
   } finally {
     llmService.generate = originalGenerate;
+    log.mock.restore();
   }
 });
 
