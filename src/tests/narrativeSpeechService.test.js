@@ -12,14 +12,14 @@ const choices = [
 test("the spoken response always includes the generated choices", () => {
   assert.equal(
     narrativeSpeechService.buildResponse("Marta se acerca a tu mesa.", choices),
-    "Marta se acerca a tu mesa. Tus opciones son: hablar con Marta, salir de la cafetería o esperar unos minutos. ¿Qué prefieres?",
+    "Marta se acerca a tu mesa. Tus opciones son: opción uno: hablar con Marta, opción dos: salir de la cafetería o opción tres: esperar unos minutos. ¿Qué prefieres?",
   );
 });
 
 test("the reprompt repeats the available choices", () => {
   assert.equal(
     narrativeSpeechService.buildReprompt(choices),
-    "Puedes elegir entre hablar con Marta, salir de la cafetería o esperar unos minutos. ¿Qué prefieres?",
+    "Puedes elegir entre opción uno: hablar con Marta, opción dos: salir de la cafetería o opción tres: esperar unos minutos. ¿Qué prefieres?",
   );
 });
 

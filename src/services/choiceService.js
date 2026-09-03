@@ -1,4 +1,15 @@
 const DYNAMIC_ENTITY_TYPE = "CHOICE_TYPE";
+const NUMERIC_ALIASES = [
+  ["uno", "opción uno", "la primera", "primera opción"],
+  ["dos", "opción dos", "la segunda", "segunda opción"],
+  ["tres", "opción tres", "la tercera", "tercera opción"],
+];
+const CONFLICTING_SINGLE_WORDS = new Set([
+  "llamar",
+  "salir",
+  "parar",
+  "cancelar",
+]);
 
 function getUserInput(handlerInput) {
   const slot = handlerInput.requestEnvelope.request.intent.slots?.choice;
@@ -45,17 +56,28 @@ function buildDynamicEntitiesDirective(choices) {
       {
         name: DYNAMIC_ENTITY_TYPE,
 
-        values: choices.map((choice) => ({
+        values: choices.map((choice, index) => ({
           id: choice.id,
 
           name: {
             value: choice.text,
-            synonyms: choice.synonyms || [],
+            synonyms: buildChoiceSynonyms(choice, index),
           },
         })),
       },
     ],
   };
+}
+
+function buildChoiceSynonyms(choice, index) {
+  const synonyms = [
+    ...(choice.synonyms || []),
+    ...(NUMERIC_ALIASES[index] || []),
+  ];
+
+  return [...new Set(synonyms.map((value) => value?.trim()).filter(Boolean))]
+    .filter((value) => !CONFLICTING_SINGLE_WORDS.has(value.toLowerCase()))
+    .filter((value) => value.toLowerCase() !== choice.text.trim().toLowerCase());
 }
 
 function addDynamicEntities(responseBuilder, choices) {
@@ -70,5 +92,6 @@ module.exports = {
   getUserInput,
   getResolvedChoice,
   buildDynamicEntitiesDirective,
+  buildChoiceSynonyms,
   addDynamicEntities,
 };

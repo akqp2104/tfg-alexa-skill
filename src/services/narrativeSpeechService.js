@@ -19,8 +19,12 @@ function buildReprompt(choices, fallback = "¿Qué decides hacer?") {
 }
 
 function buildOptionsText(choices = []) {
+  const labels = ["opción uno", "opción dos", "opción tres"];
   const texts = choices
-    .map((choice) => choice?.text?.trim())
+    .map((choice, index) => {
+      const text = choice?.text?.trim();
+      return text ? `${labels[index] || `opción ${index + 1}`}: ${text}` : null;
+    })
     .filter(Boolean);
 
   if (texts.length === 0) {
