@@ -14,9 +14,15 @@ const geminiNarrativeSchema = {
       description: "Reprompt breve, con un máximo de 250 caracteres.",
     },
 
+    storyComplete: {
+      type: "boolean",
+      description:
+        "Indica que la historia ha terminado realmente, no solo que está en resolución.",
+    },
+
     choices: {
       type: "array",
-      minItems: 2,
+      minItems: 0,
       maxItems: 3,
 
       items: {
@@ -126,6 +132,7 @@ const geminiNarrativeSchema = {
           type: "string",
           enum: ["introduction", "development", "climax", "resolution"],
         },
+
       },
 
       required: [
@@ -140,10 +147,18 @@ const geminiNarrativeSchema = {
         "recentEvents",
         "storyProgress",
       ],
+      additionalProperties: false,
     },
   },
 
-  required: ["narrative", "reprompt", "choices", "narrativeStateUpdate"],
+  required: [
+    "narrative",
+    "reprompt",
+    "storyComplete",
+    "choices",
+    "narrativeStateUpdate",
+  ],
+  additionalProperties: false,
 };
 
 module.exports = geminiNarrativeSchema;

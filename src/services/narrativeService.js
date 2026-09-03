@@ -15,22 +15,50 @@ const {
 async function generateInitialScene(gameState, storySeed, options = {}) {
   const prompt = buildInitialScenePrompt(gameState, storySeed);
 
-  return generateNarrative(prompt, options);
+  return generateNarrative(prompt, {
+    ...options,
+    requireIncomplete: true,
+  });
 }
 
 async function generateNextScene(gameState, userInput, focus, options = {}) {
-  const prompt = buildNextScenePrompt(gameState, userInput, focus);
+  const prompt = buildNextScenePrompt(gameState, userInput, focus, options);
 
   return generateNarrative(prompt, options);
 }
 
-async function generateNarrative(prompt, { deadlineAt = Infinity } = {}) {
+async function generateNarrative(
+  prompt,
+  {
+    deadlineAt = Infinity,
+    forceEnding = false,
+    requireIncomplete = false,
+  } = {},
+) {
+  const semanticValidator = (candidate) => {
+    const validation = validateNarrativeSemantics(candidate);
+
+    if (!validation.valid) {
+      return validation;
+    }
+
+    if (forceEnding && !candidate.storyComplete) {
+      return { valid: false, reason: "FORCED_ENDING_NOT_COMPLETE" };
+    }
+
+    if (requireIncomplete && candidate.storyComplete) {
+      return { valid: false, reason: "INITIAL_SCENE_CANNOT_BE_COMPLETE" };
+    }
+
+    return { valid: true };
+  };
+
   const generate = (attemptPrompt) =>
     llmService.generate({
       prompt: attemptPrompt,
       responseJsonSchema: geminiNarrativeSchema,
       zodSchema: narrativeResponseSchema,
-      semanticValidator: validateNarrativeSemantics,
+      semanticValidator,
       normalizer: normalizeNarrativeCandidate,
       maxOutputTokens: 1200,
       task: "narrative_generation",
@@ -97,9 +125,12 @@ function normalizeNarrativeCandidate(candidate) {
       return {
         ...choice,
         id: limitString(choice.id, 80),
-        text: limitString(choice.text, 120),
+        text: makeChoiceTextSafe(limitString(choice.text, 120)),
         synonyms: Array.isArray(choice.synonyms)
-          ? choice.synonyms.slice(0, 5).map((value) => limitString(value, 100))
+          ? choice.synonyms
+              .slice(0, 5)
+              .map((value) => limitString(value, 100))
+              .filter((value) => !isConflictingSingleWord(value))
           : choice.synonyms,
       };
     });
@@ -131,6 +162,19 @@ function normalizeNarrativeCandidate(candidate) {
   }
 
   return normalized;
+}
+
+function makeChoiceTextSafe(value) {
+  return isConflictingSingleWord(value) ? `Elegir ${value}` : value;
+}
+
+function isConflictingSingleWord(value) {
+  return (
+    typeof value === "string" &&
+    ["llamar", "salir", "parar", "cancelar"].includes(
+      value.trim().toLowerCase(),
+    )
+  );
 }
 
 function limitString(value, maximum) {

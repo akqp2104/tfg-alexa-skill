@@ -33,11 +33,31 @@ test("selectFocus does not repeat the previous focus", () => {
 
 test("the selected focus and its instructions reach the narrative prompt", () => {
   const prompt = buildNextScenePrompt(
-    { narrativeState: { scene: "cafeteria" } },
+    {
+      narrativeSummary: "Marta espera una respuesta.",
+      narrativeState: { scene: "cafeteria" },
+    },
     { rawText: "Esperar", resolvedChoice: { id: "wait" } },
     "socialWithdrawal",
   );
 
   assert.match(prompt, /Foco de exploración:\s*socialWithdrawal/);
   assert.match(prompt, /oportunidad natural de interacción social/);
+  assert.match(prompt, /Marta espera una respuesta/);
+});
+
+test("the hard turn limit adds mandatory final-scene instructions", () => {
+  const prompt = buildNextScenePrompt(
+    {
+      narrativeSummary: "Resumen",
+      narrativeState: { scene: "final", storyProgress: "resolution" },
+    },
+    { rawText: "Continuar", resolvedChoice: { id: "continue" } },
+    null,
+    { forceEnding: true },
+  );
+
+  assert.match(prompt, /CIERRE OBLIGATORIO POR LÍMITE DE DURACIÓN/);
+  assert.match(prompt, /storyComplete como true/);
+  assert.match(prompt, /choices vacío/);
 });

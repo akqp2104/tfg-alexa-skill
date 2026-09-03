@@ -1,4 +1,7 @@
 const { getFocusInstructions } = require("../config/indicatorFocusConfig");
+const {
+  getStoryProgressInstruction,
+} = require("../config/storyProgressConfig");
 
 function buildInitialScenePrompt(gameState, storySeed) {
   const prompt = `
@@ -27,6 +30,7 @@ INSTRUCCIONES NARRATIVAS:
 - La situación debe ser cotidiana y verosímil. Evita conflictos excesivamente dramáticos 
   o extraordinarios.
 - No resuelvas el conflicto en esta primera escena.
+- Devuelve storyComplete en false.
 
 APERTURA:
 - Respeta openingStyle para decidir cómo construir las primeras frases.
@@ -45,24 +49,34 @@ INTERACCIÓN:
 - No enumeres ni anuncies las opciones dentro del campo narrative; la aplicación las añadirá después a la locución.
 - Las alternativas deben representar formas distintas de actuar y no simples reformulaciones 
   de la misma decisión.
+- No uses "llamar", "salir", "parar" o "cancelar" como texto completo ni como sinónimo aislado de una opción. Si necesitas esos verbos, inclúyelos en una frase específica, por ejemplo "llamar a Marta" o "salir de la cafetería".
 
 RESTRICCIONES:
 - No menciones salud mental, ansiedad, depresión, indicadores, cuestionarios ni evaluaciones.
 - No diagnostiques al usuario.
 - No atribuyas al usuario real emociones, pensamientos, experiencias, síntomas ni 
   características que no haya expresado.
+- Mantén narrativeState exclusivamente dentro de la ficción. No añadas campos ni datos sobre
+  la identidad, edad, contacto, dirección, salud o historial personal del usuario real.
 - No conviertas sistemáticamente la escena en un examen, una entrega académica, una reunión, 
   llegar tarde o recibir un mensaje. Busca variedad en las situaciones concretas.`.trim();
 
   return prompt;
 }
 
-function buildNextScenePrompt(gameState, userInput, focus) {
+function buildNextScenePrompt(gameState, userInput, focus, options = {}) {
+  const progressInstruction = getStoryProgressInstruction(
+    gameState.narrativeState.storyProgress,
+  );
+
   const prompt = `
     Continúa una historia interactiva contemporánea y realista para Alexa.
 
 ESTADO NARRATIVO:
 ${JSON.stringify(gameState.narrativeState)}
+
+Resumen de la historia:
+${JSON.stringify(gameState.narrativeSummary)}
 
 DECISIÓN DEL JUGADOR:
 ${JSON.stringify(userInput)}
@@ -95,12 +109,19 @@ INTERACCIÓN:
 - No enumeres ni anuncies las opciones dentro del campo narrative; la aplicación las añadirá después a la locución.
 - Las alternativas deben representar formas distintas de actuar y no simples reformulaciones de la misma decisión.
 - Las opciones deben ser coherentes con la situación y permitir que la historia pueda continuar en direcciones diferentes.
+- No uses "llamar", "salir", "parar" o "cancelar" como texto completo ni como sinónimo aislado de una opción. Si necesitas esos verbos, inclúyelos en una frase específica.
+- Mientras storyComplete sea false, termina en una decisión y genera 2 o 3 opciones.
+- Cuando storyComplete sea true, ofrece un cierre narrativo definitivo, devuelve choices vacío y reprompt vacío.
 
 RESTRICCIONES:
 - No menciones salud mental, ansiedad, depresión, indicadores, cuestionarios ni evaluaciones.
 - No diagnostiques al usuario.
 - No atribuyas al usuario real emociones, pensamientos, experiencias, síntomas ni características que no haya expresado.
 - No confundas el estado del protagonista ficticio con información sobre el usuario real
+- Usa la decisión solo para continuar la ficción. No copies nombres reales, direcciones,
+  teléfonos, correos ni otros identificadores del usuario a narrative, narrativeStateUpdate,
+  choices o reprompt.
+- narrativeStateUpdate debe describir únicamente personajes y acontecimientos ficticios.
 
 Foco de exploración:
 ${focus}
@@ -114,6 +135,31 @@ Integralo solo si puede hacerse sin romper la continuidad de la historia.
 La coherencia narrativa tiene prioridad.
 
 No menciones el nombre del foco ni hagas preguntas clínicas o explícitas.
+
+Fase narrativa actual:
+${gameState.narrativeState.storyProgress}
+
+- Si la historia está en "climax", prioriza conflictos y compromisos ya existentes.
+- Si está en "resolution", no introduzcas nuevos conflictos principales, personajes relevantes
+  ni objetivos de largo plazo.
+- Estar en "resolution" no significa que la historia haya terminado: puede necesitar varias escenas
+  para resolver con naturalidad sus conflictos y compromisos.
+- Mantén storyComplete en false mientras quede algún conflicto, compromiso, consecuencia o cierre
+  relevante por narrar.
+- Cambia storyComplete a true únicamente cuando la historia haya llegado realmente a un final
+  satisfactorio y ya no necesite otra decisión del jugador.
+
+Objetivo de esta fase:
+${progressInstruction}
+
+${
+  options.forceEnding
+    ? `CIERRE OBLIGATORIO POR LÍMITE DE DURACIÓN:
+- Esta debe ser la escena final de la historia.
+- Cierra de forma breve y coherente los conflictos y compromisos principales.
+- Devuelve storyProgress como "resolution", storyComplete como true, choices vacío y reprompt vacío.`
+    : ""
+}
 
 `.trim();
 

@@ -1,4 +1,14 @@
 function validateNarrativeSemantics(narrative) {
+  const { storyProgress } = narrative.narrativeStateUpdate;
+  const { storyComplete } = narrative;
+
+  if (storyComplete && storyProgress !== "resolution") {
+    return {
+      valid: false,
+      reason: "STORY_COMPLETE_OUTSIDE_RESOLUTION",
+    };
+  }
+
   const choiceIds = narrative.choices.map((choice) => choice.id);
 
   if (new Set(choiceIds).size !== choiceIds.length) {
