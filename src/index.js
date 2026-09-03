@@ -2,7 +2,7 @@ const Alexa = require("ask-sdk-core");
 
 const LaunchRequestHandler = require("./handlers/LaunchRequestHandler");
 const ChoiceIntentHandler = require("./handlers/ChoiceIntentHandler");
-const HelpIntentHandler = require("./handlers/HelptIntentHandler");
+const HelpIntentHandler = require("./handlers/HelpIntentHandler");
 const CancelAndStopIntentHandler = require("./handlers/CancelAndStopIntentHandler");
 const SessionEndedRequestHandler = require("./handlers/SessionEndedRequestHandler");
 const ErrorHandler = require("./handlers/ErrorHandler");
