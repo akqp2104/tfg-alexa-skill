@@ -17,18 +17,55 @@ async function generate({
   normalizer = null,
   maxOutputTokens = 800,
 }) {
-  if (USE_LLM_MOCK) {
+  return generateWithDependencies(
+    {
+      prompt,
+      responseJsonSchema,
+      zodSchema,
+      task,
+      semanticValidator,
+      normalizer,
+      maxOutputTokens,
+    },
+    {
+      client: ai,
+      model: MODEL,
+      useLlmMock: USE_LLM_MOCK,
+    },
+  );
+}
+
+function createLlmService({
+  client,
+  model = MODEL,
+  useLlmMock = false,
+}) {
+  return {
+    generate: (options) =>
+      generateWithDependencies(options, { client, model, useLlmMock }),
+  };
+}
+
+async function generateWithDependencies(options, dependencies) {
+  const {
+    task = "unknown",
+    semanticValidator = null,
+    normalizer = null,
+    maxOutputTokens = 800,
+  } = options;
+
+  if (dependencies.useLlmMock) {
     throw new Error(`Mock not implemented for task: ${task}`);
   }
 
   return generateWithGemini({
-    prompt,
-    responseJsonSchema,
-    zodSchema,
+    ...options,
     task,
     semanticValidator,
     normalizer,
     maxOutputTokens,
+    client: dependencies.client,
+    model: dependencies.model,
   });
 }
 
@@ -40,12 +77,14 @@ async function generateWithGemini({
   semanticValidator,
   normalizer,
   maxOutputTokens,
+  client,
+  model,
 }) {
   const start = Date.now();
 
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
+    const response = await client.models.generateContent({
+      model,
 
       contents: prompt,
 
@@ -62,7 +101,7 @@ async function generateWithGemini({
 
     console.log("LLM_CALL_SUCCESS", {
       task,
-      model: MODEL,
+      model,
       latencyMs,
       promptTokenCount: usage?.promptTokenCount ?? null,
       candidatesTokenCount: usage?.candidatesTokenCount ?? null,
@@ -175,4 +214,5 @@ function formatZodIssue(issue) {
 
 module.exports = {
   generate,
+  createLlmService,
 };

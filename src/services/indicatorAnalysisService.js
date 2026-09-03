@@ -9,21 +9,28 @@ const {
   buildChoiceContext,
 } = require("./llmContextService");
 
-async function analyze({ userInput, narrativeState, currentChoices }) {
-  const prompt = buildIndicatorPrompt({
-    userInput,
-    narrativeState: buildIndicatorContext(narrativeState),
-    currentChoices: buildChoiceContext(currentChoices),
-  });
+function createIndicatorAnalysisService({ llm = llmService } = {}) {
+  async function analyze({ userInput, narrativeState, currentChoices }) {
+    const prompt = buildIndicatorPrompt({
+      userInput,
+      narrativeState: buildIndicatorContext(narrativeState),
+      currentChoices: buildChoiceContext(currentChoices),
+    });
 
-  return llmService.generate({
-    prompt,
-    responseJsonSchema: geminiIndicatorSchema,
-    zodSchema: indicatorAnalysisSchema,
-    task: "indicator_analysis",
-  });
+    return llm.generate({
+      prompt,
+      responseJsonSchema: geminiIndicatorSchema,
+      zodSchema: indicatorAnalysisSchema,
+      task: "indicator_analysis",
+    });
+  }
+
+  return { analyze };
 }
 
+const defaultIndicatorAnalysisService = createIndicatorAnalysisService();
+
 module.exports = {
-  analyze,
+  ...defaultIndicatorAnalysisService,
+  createIndicatorAnalysisService,
 };

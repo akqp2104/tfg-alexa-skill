@@ -10,33 +10,42 @@ const {
   buildChoiceContext,
 } = require("./llmContextService");
 
-async function analyze({ userInput, narrativeState, currentChoices }) {
-  const prompt = buildSafetyPrompt(
-    userInput,
-    buildSafetyContext(narrativeState),
-    buildChoiceContext(currentChoices),
-  );
+function createSafetyService({ llm = llmService } = {}) {
+  async function analyze({ userInput, narrativeState, currentChoices }) {
+    const prompt = buildSafetyPrompt(
+      userInput,
+      buildSafetyContext(narrativeState),
+      buildChoiceContext(currentChoices),
+    );
 
-  return llmService.generate({
-    prompt,
-    responseJsonSchema: geminiSafetySchema,
-    zodSchema: safetyResponseSchema,
-    task: "safety_analysis",
-  });
+    return llm.generate({
+      prompt,
+      responseJsonSchema: geminiSafetySchema,
+      zodSchema: safetyResponseSchema,
+      task: "safety_analysis",
+    });
+  }
+
+  async function analyzeClarification({ clarification, safetyState }) {
+    const prompt = buildSafetyClarificationPrompt(clarification, safetyState);
+
+    return llm.generate({
+      prompt,
+      responseJsonSchema: geminiSafetySchema,
+      zodSchema: safetyResponseSchema,
+      task: "safety_clarification",
+    });
+  }
+
+  return {
+    analyze,
+    analyzeClarification,
+  };
 }
 
-async function analyzeClarification({ clarification, safetyState }) {
-  const prompt = buildSafetyClarificationPrompt(clarification, safetyState);
-
-  return llmService.generate({
-    prompt,
-    responseJsonSchema: geminiSafetySchema,
-    zodSchema: safetyResponseSchema,
-    task: "safety_clarification",
-  });
-}
+const defaultSafetyService = createSafetyService();
 
 module.exports = {
-  analyze,
-  analyzeClarification,
+  ...defaultSafetyService,
+  createSafetyService,
 };
