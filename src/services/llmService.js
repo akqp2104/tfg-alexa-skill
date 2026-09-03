@@ -173,6 +173,7 @@ function normalizeLlmError(error) {
     const quotaError = new Error("LLM_QUOTA_EXCEEDED");
 
     quotaError.code = "LLM_QUOTA_EXCEEDED";
+    quotaError.status = 429;
 
     return quotaError;
   }
@@ -181,6 +182,7 @@ function normalizeLlmError(error) {
     const modelError = new Error("LLM_MODEL_UNAVAILABLE");
 
     modelError.code = "LLM_MODEL_UNAVAILABLE";
+    modelError.status = 404;
 
     return modelError;
   }

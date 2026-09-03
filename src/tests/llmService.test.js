@@ -106,6 +106,29 @@ test("usage metadata is included in the success log", async () => {
   assert.equal(typeof metric.latencyMs, "number");
 });
 
+for (const expected of [
+  { status: 429, code: "LLM_QUOTA_EXCEEDED" },
+  { status: 404, code: "LLM_MODEL_UNAVAILABLE" },
+]) {
+  test(`status ${expected.status} is preserved after normalization`, async () => {
+    const log = mock.method(console, "log", () => {});
+    const service = buildServiceWithGenerate(async () => {
+      throw { status: expected.status };
+    });
+
+    await assert.rejects(service.generate(buildRequest()), (error) => {
+      assert.equal(error.code, expected.code);
+      assert.equal(error.status, expected.status);
+      return true;
+    });
+
+    const metric = JSON.parse(log.mock.calls[0].arguments[0]);
+    assert.equal(metric.event, "LLM_CALL_FAILED");
+    assert.equal(metric.errorCode, expected.code);
+    assert.equal(metric.status, expected.status);
+  });
+}
+
 function buildService(response) {
   return buildServiceWithGenerate(async () => response);
 }
