@@ -9,11 +9,16 @@ const HelpIntentHandler = {
   },
 
   handle(handlerInput) {
+    const speakOutput =
+      "Durante la historia te propondré diferentes opciones. " +
+      "Puedes responder diciendo la opción que prefieras. " +
+      "Si Alexa deja de escuchar mientras estás pensando, " +
+      "di Alexa seguido de tu elección para continuar.";
+
     return handlerInput.responseBuilder
-      .speak(
-        "Puedes responder a las opciones que te voy proponiendo durante la historia.",
-      )
-      .reprompt("¿Quieres continuar?")
+      .speak(speakOutput)
+      .reprompt("¿Qué decides hacer?")
+      .withShouldEndSession(false)
       .getResponse();
   },
 };
